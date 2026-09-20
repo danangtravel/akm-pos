@@ -72,6 +72,12 @@ if (!is_file(__DIR__ . '/config/config.php')) {
   <script defer src="assets/admin-ui.js"></script>
 </head>
 <body>
+  <!-- Offline Network Banner -->
+  <div id="offlineBanner" class="pwa-offline-banner hidden" role="alert">⚠️ Đang ngoại tuyến (Mất kết nối Internet) - Chế độ xem cục bộ</div>
+
+  <!-- Smart PWA Installation Prompt Banner -->
+  <div id="pwaInstallBanner" class="pwa-install-banner hidden" role="dialog" aria-label="Cài đặt ứng dụng"></div>
+
   <!-- In-App Mobile Push Heads-Up Notification Container -->
   <div id="mobilePushContainer" class="mobile-push-container" aria-live="assertive"></div>
 
@@ -276,9 +282,6 @@ if (!is_file(__DIR__ . '/config/config.php')) {
     <span class="spinner"></span>
     <b class="text-sm font-semibold text-slate-700">Đang xử lý dữ liệu...</b>
   </div>
-
-  <!-- In-App Floating Push Notification Banner Container -->
-  <div id="mobilePushContainer" class="mobile-push-container"></div>
 
   <script src="assets/app.js"></script>
 </body>

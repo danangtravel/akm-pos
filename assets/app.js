@@ -5834,20 +5834,20 @@ window.requestNotificationPermission = async function() {
 
   if (!('Notification' in window)) {
     if (isIOS && !isStandalone) {
-      toast('📱 <b>iPhone / iPad</b>: Hãy nhấn nút <b>Chia sẻ (Share) ⎋</b> trên Safari và chọn <b>"Thêm vào Màn hình chính" (Add to Home Screen)</b> để kích hoạt thông báo đẩy PWA!', 'warning', 8000);
+      window.showIosPwaInstallGuide();
       return false;
     }
-    toast('Trình duyệt này không hỗ trợ Web Push Notification', 'warning');
+    toast('Trình duyệt này chưa hỗ trợ Web Push Notification', 'warning');
     return false;
   }
 
   if (Notification.permission === 'granted') {
-    toast('✅ Đã kích hoạt quyền thông báo trên thiết bị này!', 'success');
+    toast('✅ Đã kích hoạt quyền thông báo đẩy trên thiết bị này!', 'success');
     window.playNotificationChime();
     await window.subscribeUserToWebPush(true);
     if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
       navigator.serviceWorker.ready.then(reg => {
-        const iconUrl = new URL('assets/icon.svg', window.location.href).href;
+        const iconUrl = new URL('assets/icon-192.png', window.location.href).href;
         reg.showNotification('AKM POS · Đã kích hoạt thông báo nền', {
           body: 'Bạn sẽ nhận thông báo đơn hàng và cảnh báo ngay cả khi đóng ứng dụng.',
           icon: iconUrl,
@@ -5860,7 +5860,7 @@ window.requestNotificationPermission = async function() {
   }
 
   if (Notification.permission === 'denied') {
-    toast('⚠️ Bạn đã chặn quyền thông báo trên trình duyệt. Hãy vào Cài đặt trang web để cho phép lại.', 'warning', 6000);
+    toast('⚠️ Bạn đã chặn quyền thông báo. Hãy vào Cài đặt trang web hoặc Safari để cho phép lại.', 'warning', 6000);
     return false;
   }
 
@@ -5878,7 +5878,7 @@ window.requestNotificationPermission = async function() {
       await window.subscribeUserToWebPush(true);
       if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
         navigator.serviceWorker.ready.then(reg => {
-          const iconUrl = new URL('assets/icon.svg', window.location.href).href;
+          const iconUrl = new URL('assets/icon-192.png', window.location.href).href;
           reg.showNotification('AKM POS · Kích hoạt thành công', {
             body: 'Hệ thống đã kết nối thông báo đơn hàng, tồn kho và sửa chữa ngầm!',
             icon: iconUrl,
@@ -5895,6 +5895,152 @@ window.requestNotificationPermission = async function() {
   } catch (err) {
     toast('Lỗi khi xin quyền thông báo: ' + (err.message || err), 'error');
     return false;
+  }
+};
+
+/* =========================================================================
+   PWA Installation Prompt & Guides
+   ========================================================================= */
+window._deferredPwaPrompt = null;
+
+window.showIosPwaInstallGuide = function() {
+  const modalBody = document.getElementById('modalBody');
+  const modal = document.getElementById('modal');
+  if (!modalBody || !modal) return;
+
+  modalBody.innerHTML = `
+    <div style="text-align: center; margin-bottom: 16px;">
+      <img src="assets/icon-192.png" alt="AKM POS" style="width: 56px; height: 56px; border-radius: 14px; margin: 0 auto 10px; box-shadow: 0 4px 12px rgba(15,118,110,0.3);">
+      <h3 style="font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 4px;">Cài đặt AKM POS vào iPhone</h3>
+      <p style="font-size: 12.5px; color: #64748b; margin: 0;">Sử dụng toàn màn hình & Nhận thông báo đẩy đơn hàng tức thì</p>
+    </div>
+
+    <div class="pwa-guide-step">
+      <div class="pwa-step-num">1</div>
+      <div class="pwa-step-text">
+        Nhấn vào biểu tượng <b>Chia sẻ (Share) ⎋</b> ở thanh điều hướng dưới cùng của trình duyệt <b>Safari</b>.
+      </div>
+    </div>
+
+    <div class="pwa-guide-step">
+      <div class="pwa-step-num">2</div>
+      <div class="pwa-step-text">
+        Cuộn xuống danh sách tùy chọn và chọn <b>"Thêm vào Màn hình chính" (Add to Home Screen)</b>.
+      </div>
+    </div>
+
+    <div class="pwa-guide-step">
+      <div class="pwa-step-num">3</div>
+      <div class="pwa-step-text">
+        Nhấn nút <b>"Thêm" (Add)</b> ở góc trên bên phải để hoàn tất. Mở app từ màn hình chính và bật thông báo!
+      </div>
+    </div>
+
+    <button type="button" class="btn btn-primary" style="width: 100%; margin-top: 8px; padding: 12px;" onclick="closeModal()">
+      Đã hiểu, đóng hướng dẫn
+    </button>
+  `;
+
+  modal.classList.remove('hidden');
+};
+
+window.initPwaInstallPrompt = function() {
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  if (isStandalone) return; // Already installed as PWA
+
+  const banner = document.getElementById('pwaInstallBanner');
+  if (!banner) return;
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+  // Listen for beforeinstallprompt on Android / Chrome / Edge
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    window._deferredPwaPrompt = e;
+    
+    if (localStorage.getItem('akm_pwa_dismissed') === '1') return;
+
+    banner.innerHTML = `
+      <div class="pwa-install-brand">
+        <img src="assets/icon-192.png" alt="AKM POS" class="pwa-install-icon">
+        <div class="pwa-install-texts">
+          <div class="pwa-install-title">Cài đặt App AKM POS</div>
+          <div class="pwa-install-desc">Nhận thông báo đơn hàng & Dùng toàn màn hình</div>
+        </div>
+      </div>
+      <div class="pwa-install-actions">
+        <button type="button" class="pwa-install-btn" onclick="window.triggerPwaInstall()">Cài đặt</button>
+        <button type="button" class="pwa-install-close" onclick="window.dismissPwaBanner()" aria-label="Đóng">✕</button>
+      </div>
+    `;
+    banner.classList.remove('hidden');
+  });
+
+  // For iOS Safari (non-standalone)
+  if (isIOS && !window.Capacitor) {
+    if (localStorage.getItem('akm_pwa_dismissed') === '1') return;
+    
+    setTimeout(() => {
+      banner.innerHTML = `
+        <div class="pwa-install-brand">
+          <img src="assets/icon-192.png" alt="AKM POS" class="pwa-install-icon">
+          <div class="pwa-install-texts">
+            <div class="pwa-install-title">Cài đặt App AKM POS</div>
+            <div class="pwa-install-desc">Thêm vào MH chính để nhận thông báo đẩy</div>
+          </div>
+        </div>
+        <div class="pwa-install-actions">
+          <button type="button" class="pwa-install-btn" onclick="window.showIosPwaInstallGuide()">Hướng dẫn</button>
+          <button type="button" class="pwa-install-close" onclick="window.dismissPwaBanner()" aria-label="Đóng">✕</button>
+        </div>
+      `;
+      banner.classList.remove('hidden');
+    }, 2500);
+  }
+};
+
+window.triggerPwaInstall = async function() {
+  if (window._deferredPwaPrompt) {
+    window._deferredPwaPrompt.prompt();
+    const { outcome } = await window._deferredPwaPrompt.userChoice;
+    if (outcome === 'accepted') {
+      toast('🎉 Đang cài đặt AKM POS vào màn hình chính...', 'success');
+      window.dismissPwaBanner();
+    }
+    window._deferredPwaPrompt = null;
+  }
+};
+
+window.dismissPwaBanner = function() {
+  const banner = document.getElementById('pwaInstallBanner');
+  if (banner) banner.classList.add('hidden');
+  localStorage.setItem('akm_pwa_dismissed', '1');
+};
+
+/* =========================================================================
+   Offline Network Indicator
+   ========================================================================= */
+window.initOfflineDetector = function() {
+  const banner = document.getElementById('offlineBanner');
+  
+  function updateOnlineStatus() {
+    if (!navigator.onLine) {
+      if (banner) banner.classList.remove('hidden');
+    } else {
+      if (banner && !banner.classList.contains('hidden')) {
+        banner.classList.add('hidden');
+        toast('🟢 Đã khôi phục kết nối mạng internet!', 'success');
+        if (typeof window.checkNotifications === 'function') {
+          window.checkNotifications(false);
+        }
+      }
+    }
+  }
+
+  window.addEventListener('online', updateOnlineStatus);
+  window.addEventListener('offline', updateOnlineStatus);
+  if (!navigator.onLine && banner) {
+    banner.classList.remove('hidden');
   }
 };
 
@@ -6130,6 +6276,10 @@ window.initNotificationSystem = function() {
       }
     });
   }
+
+  // Initialize Offline Network Detector & Smart PWA Installation
+  window.initOfflineDetector();
+  window.initPwaInstallPrompt();
 
   // Proactive Push Permission Prompt for Admin on Mobile PWA
   if (S.user?.role === 'ADMIN' && 'Notification' in window && Notification.permission === 'default') {
