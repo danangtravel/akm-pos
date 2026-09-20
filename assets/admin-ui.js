@@ -657,32 +657,183 @@ window.importCsv = async e => {
    CATEGORIES MANAGEMENT
    ========================================================================= */
 
+window._catFilterStatus = 'all';
+window._catSearchQ = '';
+window._catSort = 'order_asc';
+
 window.categories = async function() {
   const rows = await api('categories.list');
-  window._categories = rows;
-  const names = Object.fromEntries(rows.map(x => [x.id, x.name]));
+  window._categories = rows || [];
+  window._catFilterStatus = 'all';
+  window._catSearchQ = '';
+  window._catSort = 'order_asc';
+
+  const allCount = rows.length;
+  const activeCount = rows.filter(c => +c.is_active).length;
+  const inactiveCount = rows.filter(c => !+c.is_active).length;
 
   $('#content').innerHTML = head(
     'Quản lý Nhóm sản phẩm',
     `<button class="btn primary sm" onclick="categoryForm()">${icon('plus', 16)} <span>Thêm nhóm mới</span></button>`,
-    'Phân cấp danh mục hàng hóa (Điện thoại, Phụ kiện, Cường lực, Linh kiện...)'
-  ) + table(
-    ['Ảnh', 'Tên nhóm danh mục', 'Nhóm cha', 'Thứ tự', 'Trạng thái', 'Thao tác'],
-    rows.map(c => [
-      thumb(c.image_path, c.name),
-      `<div class="flex items-center gap-2.5"><span class="w-7 h-7 rounded-lg bg-teal-50 border border-teal-200 grid place-items-center text-teal-700">${getCategoryIcon(c.name, 15)}</span> <b>${esc(c.name)}</b></div>`,
-      esc(names[c.parent_id] || '— (Nhóm gốc)'),
-      c.sort_order,
-      +c.is_active ? '<span class="badge success">Đang dùng</span>' : '<span class="badge danger">Ẩn</span>',
-      `
-        <div class="flex items-center gap-2">
-          <button class="btn secondary sm" onclick="categoryForm(${c.id})">Sửa</button>
-          <button class="btn danger sm" onclick="deleteCategory(${c.id})">Xóa</button>
-        </div>
-      `
-    ])
-  );
+    `Tổng cộng <b>${allCount}</b> nhóm sản phẩm · Phân cấp danh mục (Điện thoại, Phụ kiện, Cường lực, Linh kiện...)`
+  ) + `
+    <div class="pos-main-col">
+      <!-- Search Box with Clear Button -->
+      <div class="search-box">
+        ${icon('search', 18)}
+        <input id="catSearch" placeholder="Tìm theo tên nhóm hàng, nhóm cha...">
+        <button id="catClearBtn" class="search-clear-btn hidden" onclick="clearCatSearch()">${icon('x', 14)}</button>
+      </div>
+
+      <!-- Status Filter Bar for Categories -->
+      <div class="pos-sort-bar" id="catStatusBar" style="margin-bottom:8px;">
+        <span class="pos-sort-label">${icon('filter', 12)} Trạng thái:</span>
+        <button class="pos-sort-btn active" onclick="setCatStatus('all', this)">Tất cả (${allCount})</button>
+        <button class="pos-sort-btn" onclick="setCatStatus('active', this)">Đang dùng (${activeCount})</button>
+        <button class="pos-sort-btn" onclick="setCatStatus('inactive', this)">Đang ẩn (${inactiveCount})</button>
+      </div>
+
+      <!-- Sort Toolbar for Categories -->
+      <div class="pos-sort-bar" id="catSortBar">
+        <span class="pos-sort-label">${icon('settings', 12)} Sắp xếp:</span>
+        <button class="pos-sort-btn active" onclick="setCatSort('order_asc', this)">Thứ tự hiển thị</button>
+        <button class="pos-sort-btn" onclick="setCatSort('name_asc', this)">Tên A-Z</button>
+        <button class="pos-sort-btn" onclick="setCatSort('name_desc', this)">Tên Z-A</button>
+      </div>
+
+      <div id="catListTable"></div>
+    </div>
+  `;
+
+  const sInput = $('#catSearch');
+  if (sInput) {
+    sInput.oninput = debounce(e => {
+      const val = e.target.value.trim();
+      $('#catClearBtn')?.classList.toggle('hidden', !val);
+      window._catSearchQ = val;
+      renderCatRows(val);
+    }, 140);
+  }
+
+  renderCatRows('');
 };
+
+window.clearCatSearch = () => {
+  const input = $('#catSearch');
+  if (!input) return;
+  input.value = '';
+  $('#catClearBtn')?.classList.add('hidden');
+  window._catSearchQ = '';
+  input.focus();
+  renderCatRows('');
+};
+
+window.setCatStatus = (status, btn) => {
+  window._catFilterStatus = status;
+  document.querySelectorAll('#catStatusBar .pos-sort-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderCatRows($('#catSearch')?.value || '');
+};
+
+window.setCatSort = (sort, btn) => {
+  window._catSort = sort;
+  document.querySelectorAll('#catSortBar .pos-sort-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderCatRows($('#catSearch')?.value || '');
+};
+
+function renderCatRows(q = '') {
+  const rows = window._categories || [];
+  const names = Object.fromEntries(rows.map(x => [x.id, x.name]));
+  const qClean = q.trim().toLowerCase();
+  const qNonAccent = nonAccent(qClean);
+  const statusFilter = window._catFilterStatus || 'all';
+
+  let list = rows.filter(c => {
+    const parentName = names[c.parent_id] || '';
+    const term = `${c.name || ''} ${parentName}`.toLowerCase();
+    const termNonAccent = nonAccent(term);
+    const matchesQ = !qClean || term.includes(qClean) || termNonAccent.includes(qNonAccent);
+
+    let matchesStatus = true;
+    if (statusFilter === 'active') matchesStatus = +c.is_active === 1;
+    else if (statusFilter === 'inactive') matchesStatus = +c.is_active === 0;
+
+    return matchesQ && matchesStatus;
+  });
+
+  const sort = window._catSort || 'order_asc';
+  list.sort((a, b) => {
+    if (sort === 'order_asc') return (+a.sort_order || 0) - (+b.sort_order || 0);
+    if (sort === 'name_asc') return (a.name || '').localeCompare(b.name || '', 'vi');
+    if (sort === 'name_desc') return (b.name || '').localeCompare(a.name || '', 'vi');
+    return 0;
+  });
+
+  if (!list.length) {
+    $('#catListTable').innerHTML = `
+      <div class="card p-10 text-center text-slate-400">
+        <div class="mb-2">${icon('categories', 32, 'text-slate-300 inline-block')}</div>
+        <p class="font-medium text-sm">Không tìm thấy nhóm hàng nào</p>
+        <small class="text-xs text-slate-400">Thử tìm kiếm với từ khóa khác hoặc chuyển bộ lọc</small>
+      </div>
+    `;
+    return;
+  }
+
+  $('#catListTable').innerHTML = `
+    <div class="product-list-container">
+      ${list.map(c => {
+        const isInactive = !+c.is_active;
+        const imgUrl = c.image_path;
+        const imgHtml = imgUrl
+          ? `<img src="${esc(imgUrl)}" alt="${esc(c.name)}" class="prod-thumb-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="prod-thumb-fallback" style="display:none">${getCategoryIcon(c.name, 22)}</div>`
+          : `<div class="prod-thumb-fallback">${getCategoryIcon(c.name, 22)}</div>`;
+
+        return `
+          <div class="product-row-card ${isInactive ? 'inactive' : ''}" onclick="categoryForm(${c.id})" title="Nhấp chỉnh sửa nhóm: ${esc(c.name)}">
+            <!-- CỘT 1: ICON / THUMBNAIL (20% width) -->
+            <div class="prod-col-thumb">
+              <div class="prod-thumb-box" style="background:#f0fdfa;border-color:#ccfbf1;">
+                ${imgHtml}
+              </div>
+            </div>
+
+            <!-- CỘT 2: TÊN NHÓM & NHÓM CHA (40% width) -->
+            <div class="prod-col-info">
+              <div class="prod-name-line">
+                <span class="prod-name-text">
+                  ${esc(c.name)}
+                </span>
+                ${isInactive ? `<span class="badge danger text-[9.5px] py-0 px-1 ml-0.5">Ẩn</span>` : ''}
+              </div>
+              <div class="prod-cat-line">
+                <span class="prod-cat-text">
+                  ${icon('categories', 12)}
+                  <span>${esc(names[c.parent_id] || 'Nhóm gốc')}</span>
+                </span>
+                <span class="prod-sku-sub">· Thứ tự: ${c.sort_order}</span>
+              </div>
+            </div>
+
+            <!-- CỘT 3: TRẠNG THÁI & NÚT SỬA/XÓA (40% width) -->
+            <div class="prod-col-pricing">
+              <div class="prod-price-line">
+                ${+c.is_active ? `<span class="badge success" style="font-size:10px;padding:2px 6px;">Đang dùng</span>` : `<span class="badge danger" style="font-size:10px;padding:2px 6px;">Đang ẩn</span>`}
+              </div>
+              <div class="prod-stock-line" onclick="event.stopPropagation()">
+                <div class="flex gap-1.5 mt-0.5">
+                  <button type="button" class="btn secondary sm" style="padding:2px 7px;font-size:10.5px;" onclick="categoryForm(${c.id})">Sửa</button>
+                  <button type="button" class="btn danger sm" style="padding:2px 7px;font-size:10.5px;" onclick="deleteCategory(${c.id})">Xóa</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
 
 window.categoryForm = id => {
   const rows = window._categories || [];

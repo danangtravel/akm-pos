@@ -2078,35 +2078,213 @@ window.setDashboardStore = stId => {
    REPAIRS MODULE (Phiếu sửa chữa & Gallery & Timeline)
    ========================================================================= */
 
+window._repairStatusFilter = 'all';
+window._repairSearchQ = '';
+window._repairSort = 'date_desc';
+
 async function repairs() {
   const rows = await api('repairs.list');
-  window._repairList = rows;
+  window._repairList = rows || [];
+  window._repairStatusFilter = 'all';
+  window._repairSearchQ = '';
+  window._repairSort = 'date_desc';
+
+  const currentStoreName = S.store === 0 ? '⭐ Tất cả hệ thống AKM' : (S.stores.find(s => s.id === S.store)?.name || 'Chi nhánh hiện tại');
+
+  const allCount = rows.length;
+  const recCount = rows.filter(r => r.status === 'RECEIVED').length;
+  const repCount = rows.filter(r => r.status === 'REPAIRING' || r.status === 'INSPECTING').length;
+  const partsCount = rows.filter(r => r.status === 'WAITING_PARTS').length;
+  const doneCount = rows.filter(r => r.status === 'COMPLETED' || r.status === 'WAITING_PICKUP').length;
+  const retCount = rows.filter(r => r.status === 'RETURNED').length;
 
   $('#content').innerHTML = head(
     'Phiếu sửa chữa thiết bị',
     `<button class="btn primary sm" onclick="repairForm()">${icon('plus', 16)} <span>Tạo phiếu sửa</span></button>`,
-    'Tiếp nhận, xử lý và theo dõi tiến độ sửa chữa điện thoại, linh kiện theo từng chi nhánh'
-  ) + table(
-    ['Mã phiếu', 'Chi nhánh', 'Khách hàng', 'Điện thoại', 'Thiết bị', 'Phí dịch vụ', 'Kỹ thuật viên', 'Trạng thái', 'Hẹn trả', 'Ghi chú', 'Ảnh', 'Thao tác'],
-    rows.map(r => [
-      `<b class="text-teal-700 font-mono">${esc(r.repair_code)}</b>`,
-      `<span class="badge info font-semibold">${esc(r.store_name)}</span>`,
-      esc(r.customer_name),
-      `<a class="inline-flex items-center gap-1 text-teal-700 font-semibold hover:underline" href="tel:${esc(r.customer_phone)}">${icon('phone', 12)} ${esc(r.customer_phone)}</a>`,
-      esc(r.device_name),
-      `<b class="text-slate-900 font-bold">${money(r.fee || 0)}</b>`,
-      esc(r.technician_name || 'Chưa gán'),
-      `<span class="badge ${r.status}">${formatRepairStatus(r.status)}</span>`,
-      dt(r.expected_return_at),
-      r.staff_note ? `<span class="text-xs text-slate-600 block max-w-[160px] truncate" title="${esc(r.staff_note)}">${esc(r.staff_note)}</span>` : '<span class="text-slate-300">—</span>',
-      `<span class="inline-flex items-center gap-1 font-semibold text-slate-600">${icon('camera', 13)} ${r.image_count}</span>`,
-      `
-        <button class="btn secondary sm" onclick="repairDetail(${r.id})">
-          ${icon('eye', 13)} <span>Xử lý</span>
-        </button>
-      `
-    ])
-  );
+    `Chi nhánh: <b class="text-teal-800">${esc(currentStoreName)}</b> · Tổng <b>${allCount}</b> phiếu sửa chữa`
+  ) + `
+    <div class="pos-main-col">
+      <!-- Status Pills Bar for Repairs -->
+      <div class="category-pills-wrapper">
+        <button type="button" class="pills-scroll-btn prev" onclick="scrollPills('repairStatusPills', -220)" title="Cuộn trái">${icon('chevron-left', 16)}</button>
+        <div class="category-pills" id="repairStatusPills">
+          <button class="category-pill ${window._repairStatusFilter === 'all' ? 'active' : ''}" onclick="selectRepairStatus('all')">
+            <span class="cat-pill-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg></span>
+            <span>Tất cả (${allCount})</span>
+          </button>
+          <button class="category-pill ${window._repairStatusFilter === 'RECEIVED' ? 'active' : ''}" onclick="selectRepairStatus('RECEIVED')">
+            <span class="cat-pill-icon">${icon('clock', 14)}</span>
+            <span>Tiếp nhận (${recCount})</span>
+          </button>
+          <button class="category-pill ${window._repairStatusFilter === 'IN_PROGRESS' ? 'active' : ''}" onclick="selectRepairStatus('IN_PROGRESS')">
+            <span class="cat-pill-icon">${icon('tool', 14)}</span>
+            <span>Đang sửa (${repCount})</span>
+          </button>
+          <button class="category-pill ${window._repairStatusFilter === 'WAITING_PARTS' ? 'active' : ''}" onclick="selectRepairStatus('WAITING_PARTS')">
+            <span class="cat-pill-icon">${icon('alert', 14)}</span>
+            <span>Chờ linh kiện (${partsCount})</span>
+          </button>
+          <button class="category-pill ${window._repairStatusFilter === 'DONE' ? 'active' : ''}" onclick="selectRepairStatus('DONE')">
+            <span class="cat-pill-icon">${icon('check', 14)}</span>
+            <span>Đã xong / Chờ nhận (${doneCount})</span>
+          </button>
+          <button class="category-pill ${window._repairStatusFilter === 'RETURNED' ? 'active' : ''}" onclick="selectRepairStatus('RETURNED')">
+            <span class="cat-pill-icon">${icon('orders', 14)}</span>
+            <span>Đã trả khách (${retCount})</span>
+          </button>
+        </div>
+        <button type="button" class="pills-scroll-btn next" onclick="scrollPills('repairStatusPills', 220)" title="Cuộn phải">${icon('chevron-right', 16)}</button>
+      </div>
+
+      <!-- Search Box with Clear Button -->
+      <div class="search-box">
+        ${icon('search', 18)}
+        <input id="repairSearch" placeholder="Tìm theo mã phiếu, tên khách, số điện thoại, thiết bị, IMEI...">
+        <button id="repairClearBtn" class="search-clear-btn hidden" onclick="clearRepairSearch()">${icon('x', 14)}</button>
+      </div>
+
+      <!-- Sort Toolbar for Repairs -->
+      <div class="pos-sort-bar" id="repairSortBar">
+        <span class="pos-sort-label">${icon('settings', 12)} Sắp xếp:</span>
+        <button class="pos-sort-btn active" onclick="setRepairSort('date_desc', this)">Mới nhận nhất</button>
+        <button class="pos-sort-btn" onclick="setRepairSort('return_asc', this)">Hẹn trả gần nhất</button>
+        <button class="pos-sort-btn" onclick="setRepairSort('fee_desc', this)">Phí: Cao → Thấp</button>
+        <button class="pos-sort-btn" onclick="setRepairSort('customer_asc', this)">Khách hàng A-Z</button>
+      </div>
+
+      <div id="repairListTable"></div>
+    </div>
+  `;
+
+  if (typeof initPillsScroll === 'function') {
+    initPillsScroll('repairStatusPills');
+  }
+
+  const sInput = $('#repairSearch');
+  if (sInput) {
+    sInput.oninput = debounce(e => {
+      const val = e.target.value.trim();
+      $('#repairClearBtn')?.classList.toggle('hidden', !val);
+      window._repairSearchQ = val;
+      renderRepairRows(val);
+    }, 140);
+  }
+
+  renderRepairRows('');
+}
+
+window.clearRepairSearch = () => {
+  const input = $('#repairSearch');
+  if (!input) return;
+  input.value = '';
+  $('#repairClearBtn')?.classList.add('hidden');
+  window._repairSearchQ = '';
+  input.focus();
+  renderRepairRows('');
+};
+
+window.selectRepairStatus = status => {
+  window._repairStatusFilter = status;
+  document.querySelectorAll('#repairStatusPills .category-pill').forEach(b => {
+    b.classList.remove('active');
+  });
+  if (event?.currentTarget) event.currentTarget.classList.add('active');
+  renderRepairRows($('#repairSearch')?.value || '');
+};
+
+window.setRepairSort = (sort, btn) => {
+  window._repairSort = sort;
+  document.querySelectorAll('#repairSortBar .pos-sort-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderRepairRows($('#repairSearch')?.value || '');
+};
+
+function renderRepairRows(q = '') {
+  const qClean = q.trim().toLowerCase();
+  const qNonAccent = nonAccent(qClean);
+  const statusFilter = window._repairStatusFilter || 'all';
+
+  let list = (window._repairList || []).filter(r => {
+    const term = `${r.repair_code || ''} ${r.customer_name || ''} ${r.customer_phone || ''} ${r.device_name || ''} ${r.imei || ''} ${r.store_name || ''} ${r.technician_name || ''}`.toLowerCase();
+    const termNonAccent = nonAccent(term);
+    const matchesQ = !qClean || term.includes(qClean) || termNonAccent.includes(qNonAccent);
+
+    let matchesStatus = true;
+    if (statusFilter === 'RECEIVED') matchesStatus = r.status === 'RECEIVED';
+    else if (statusFilter === 'IN_PROGRESS') matchesStatus = r.status === 'REPAIRING' || r.status === 'INSPECTING';
+    else if (statusFilter === 'WAITING_PARTS') matchesStatus = r.status === 'WAITING_PARTS';
+    else if (statusFilter === 'DONE') matchesStatus = r.status === 'COMPLETED' || r.status === 'WAITING_PICKUP';
+    else if (statusFilter === 'RETURNED') matchesStatus = r.status === 'RETURNED';
+
+    return matchesQ && matchesStatus;
+  });
+
+  const sort = window._repairSort || 'date_desc';
+  list.sort((a, b) => {
+    if (sort === 'date_desc') return new Date(b.created_at || b.received_at).getTime() - new Date(a.created_at || a.received_at).getTime();
+    if (sort === 'return_asc') return new Date(a.expected_return_at || '9999').getTime() - new Date(b.expected_return_at || '9999').getTime();
+    if (sort === 'fee_desc') return (+b.fee || 0) - (+a.fee || 0);
+    if (sort === 'customer_asc') return (a.customer_name || '').localeCompare(b.customer_name || '', 'vi');
+    return 0;
+  });
+
+  if (!list.length) {
+    $('#repairListTable').innerHTML = `
+      <div class="card p-10 text-center text-slate-400">
+        <div class="mb-2">${icon('tool', 32, 'text-slate-300 inline-block')}</div>
+        <p class="font-medium text-sm">Không tìm thấy phiếu sửa chữa nào</p>
+        <small class="text-xs text-slate-400">Thử tìm kiếm với từ khóa khác hoặc chuyển trạng thái</small>
+      </div>
+    `;
+    return;
+  }
+
+  $('#repairListTable').innerHTML = `
+    <div class="product-list-container">
+      ${list.map(r => {
+        const isDone = r.status === 'COMPLETED' || r.status === 'RETURNED';
+        const isWaiting = r.status === 'WAITING_PARTS';
+
+        return `
+          <div class="product-row-card ${isDone ? '' : (isWaiting ? 'border-amber-300' : '')}" onclick="repairDetail(${r.id})" title="Nhấp xem & cập nhật tiến độ phiếu: ${esc(r.repair_code)}">
+            <!-- CỘT 1: THUMBNAIL / ICON (20% width) -->
+            <div class="prod-col-thumb">
+              <div class="prod-thumb-box" style="background:#f0fdfa;border-color:#ccfbf1;position:relative;">
+                <span class="text-teal-700">${icon('tool', 22)}</span>
+                ${+r.image_count > 0 ? `<span style="position:absolute;bottom:2px;right:2px;background:#0f766e;color:#fff;font-size:9px;padding:0 3px;border-radius:4px;font-weight:700;">📷${r.image_count}</span>` : ''}
+              </div>
+            </div>
+
+            <!-- CỘT 2: MÃ PHIẾU, KHÁCH HÀNG & THIẾT BỊ (40% width) -->
+            <div class="prod-col-info">
+              <div class="prod-name-line">
+                <span class="prod-name-text">
+                  <b class="text-teal-700 font-mono">${esc(r.repair_code)}</b> · ${esc(r.customer_name)}
+                </span>
+              </div>
+              <div class="prod-cat-line">
+                <span class="prod-cat-text">
+                  ${icon('tool', 12)}
+                  <b>${esc(r.device_name)}</b>
+                </span>
+                <span class="prod-sku-sub">· ${esc(r.store_name)}</span>
+              </div>
+            </div>
+
+            <!-- CỘT 3: CHI PHÍ & TRẠNG THÁI (40% width) -->
+            <div class="prod-col-pricing">
+              <div class="prod-price-line">
+                <span class="prod-price-text">${money(r.fee || 0)}</span>
+              </div>
+              <div class="prod-stock-line">
+                <span class="badge ${r.status}" style="font-size:10px;padding:2px 6px;">${formatRepairStatus(r.status)}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
 }
 
 function formatRepairStatus(st) {
@@ -3146,86 +3324,221 @@ window.decideTransfer = async (id, decision) => {
    RETURNS MODULE (Đổi / Trả hàng hóa & Hoàn tồn tự động)
    ========================================================================= */
 
+window._returnsActiveTab = 'orders'; // 'orders' | 'history'
+
 async function returnsPage() {
-  const currentStoreName = S.store === 0 ? 'Tất cả hệ thống AKM' : (S.stores.find(s => s.id === S.store)?.name || 'Chi nhánh hiện tại');
+  const currentStoreName = S.store === 0 ? '⭐ Tất cả hệ thống AKM' : (S.stores.find(s => s.id === S.store)?.name || 'Chi nhánh hiện tại');
+  const activeTab = window._returnsActiveTab || 'orders';
+
   $('#content').innerHTML = head(
     'Đổi / Trả hàng hóa',
     '',
     `Chi nhánh: <b class="text-teal-800">${esc(currentStoreName)}</b> · Tiếp nhận đổi trả sản phẩm, tính tiền hoàn và cập nhật tồn kho tự động`
   ) + `
-    <div class="card mb-4">
-      <div class="card-title mb-2">
-        ${icon('search', 16)} <span>Tìm kiếm hóa đơn bán hàng cần đổi trả</span>
-      </div>
-      <div class="flex gap-2 flex-wrap">
-        <div class="search-box mb-0 flex-1">
-          ${icon('search', 16)}
-          <input id="returnOrderSearch" placeholder="Nhập mã hóa đơn (vd: HD260831...) hoặc tên thu ngân, chi nhánh...">
+    <div class="pos-main-col">
+      <!-- Tabs Bar for Returns -->
+      <div class="category-pills-wrapper" style="margin-bottom: 12px;">
+        <div class="category-pills" id="returnsTabPills">
+          <button class="category-pill ${activeTab === 'orders' ? 'active' : ''}" onclick="switchReturnsTab('orders')">
+            <span class="cat-pill-icon">${icon('orders', 14)}</span>
+            <span>1. Chọn Hóa đơn cần đổi trả</span>
+          </button>
+          <button class="category-pill ${activeTab === 'history' ? 'active' : ''}" onclick="switchReturnsTab('history')">
+            <span class="cat-pill-icon">${icon('returns', 14)}</span>
+            <span>2. Lịch sử phiếu đổi / trả</span>
+          </button>
         </div>
-        <select id="returnOrderSort" class="w-auto" style="min-width:140px;max-width:180px;">
-          <option value="date_desc">Ngày mới nhất</option>
-          <option value="date_asc">Ngày cũ nhất</option>
-          <option value="amount_desc">Tổng tiền cao nhất</option>
-        </select>
       </div>
-      <div id="returnOrders" class="mt-3"></div>
-    </div>
 
-    <div class="card">
-      <div class="card-title mb-2">${icon('returns', 16)} <span>Lịch sử đổi / trả gần đây</span></div>
-      <div id="returnHistory"></div>
+      <div id="returnsTabContent"></div>
     </div>
   `;
 
-  $('#returnOrderSearch').oninput = debounce(loadReturnOrders, 160);
-  $('#returnOrderSort').onchange = loadReturnOrders;
-
-  const h = await api('returns.list');
-  $('#returnHistory').innerHTML = table(
-    ['Mã phiếu trả', 'Hóa đơn gốc', 'Chi nhánh', 'Thu ngân', 'Tiền hoàn trả', 'Lý do', 'Ngày tạo', 'Thao tác'],
-    h.map(x => [
-      `<b class="text-rose-700 font-mono">${esc(x.return_code)}</b>`,
-      `<span class="font-bold text-teal-800 font-mono cursor-pointer hover:underline" onclick="viewOrderDetail(${x.order_id})">${esc(x.order_code)}</span>`,
-      esc(x.store_name),
-      esc(x.full_name),
-      `<b class="text-rose-600 font-bold">${money(x.total_amount)}</b>`,
-      esc(x.reason),
-      dt(x.created_at),
-      `<button class="btn secondary sm" onclick="viewReturnDetail(${x.id})">${icon('eye', 13)} <span>Chi tiết</span></button>`
-    ])
-  );
-
-  loadReturnOrders();
+  renderReturnsContent();
 }
 
+window.switchReturnsTab = tab => {
+  window._returnsActiveTab = tab;
+  document.querySelectorAll('#returnsTabPills .category-pill').forEach(b => b.classList.remove('active'));
+  if (event?.currentTarget) event.currentTarget.classList.add('active');
+  renderReturnsContent();
+};
+
+async function renderReturnsContent() {
+  const tab = window._returnsActiveTab || 'orders';
+  const target = document.getElementById('returnsTabContent');
+  if (!target) return;
+
+  if (tab === 'orders') {
+    target.innerHTML = `
+      <!-- Search Box with Clear Button -->
+      <div class="search-box">
+        ${icon('search', 18)}
+        <input id="returnOrderSearch" placeholder="Nhập mã hóa đơn (vd: HD260831...), tên thu ngân, chi nhánh...">
+        <button id="returnClearBtn" class="search-clear-btn hidden" onclick="clearReturnOrderSearch()">${icon('x', 14)}</button>
+      </div>
+
+      <!-- Sort Toolbar for Return Orders -->
+      <div class="pos-sort-bar" id="returnSortBar">
+        <span class="pos-sort-label">${icon('settings', 12)} Sắp xếp:</span>
+        <button class="pos-sort-btn active" onclick="setReturnOrderSort('date_desc', this)">Ngày mới nhất</button>
+        <button class="pos-sort-btn" onclick="setReturnOrderSort('date_asc', this)">Ngày cũ nhất</button>
+        <button class="pos-sort-btn" onclick="setReturnOrderSort('amount_desc', this)">Tổng tiền cao nhất</button>
+      </div>
+
+      <div id="returnOrdersList"></div>
+    `;
+
+    const sInput = $('#returnOrderSearch');
+    if (sInput) {
+      sInput.oninput = debounce(e => {
+        const val = e.target.value.trim();
+        $('#returnClearBtn')?.classList.toggle('hidden', !val);
+        loadReturnOrders();
+      }, 140);
+    }
+
+    loadReturnOrders();
+  } else {
+    target.innerHTML = `<div class="p-8 text-center text-slate-400">Đang tải lịch sử đổi trả...</div>`;
+    try {
+      const h = await api('returns.list');
+      if (!h || !h.length) {
+        target.innerHTML = `
+          <div class="card p-10 text-center text-slate-400">
+            <div class="mb-2">${icon('returns', 32, 'text-slate-300 inline-block')}</div>
+            <p class="font-medium text-sm">Chưa có giao dịch đổi trả nào gần đây</p>
+          </div>
+        `;
+        return;
+      }
+
+      target.innerHTML = `
+        <div class="product-list-container">
+          ${h.map(x => `
+            <div class="product-row-card border-rose-100 hover:border-rose-300" onclick="viewReturnDetail(${x.id})" title="Nhấp xem chi tiết phiếu trả: ${esc(x.return_code)}">
+              <!-- CỘT 1: ICON (20% width) -->
+              <div class="prod-col-thumb">
+                <div class="prod-thumb-box" style="background:#fff1f2;border-color:#fecdd3;">
+                  <span class="text-rose-600">${icon('returns', 22)}</span>
+                </div>
+              </div>
+
+              <!-- CỘT 2: MÃ PHIẾU, HÓA ĐƠN GỐC & THU NGÂN (40% width) -->
+              <div class="prod-col-info">
+                <div class="prod-name-line">
+                  <span class="prod-name-text">
+                    <b class="text-rose-700 font-mono">${esc(x.return_code)}</b> · Gốc: <span class="text-teal-700 font-mono font-bold">${esc(x.order_code)}</span>
+                  </span>
+                </div>
+                <div class="prod-cat-line">
+                  <span class="prod-cat-text">
+                    ${icon('user', 12)}
+                    <span>${esc(x.full_name || 'Thu ngân')}</span>
+                  </span>
+                  <span class="prod-sku-sub">· ${esc(x.store_name)} · ${dt(x.created_at)}</span>
+                </div>
+              </div>
+
+              <!-- CỘT 3: TIỀN HOÀN TRẢ & THAO TÁC (40% width) -->
+              <div class="prod-col-pricing">
+                <div class="prod-price-line">
+                  <span class="prod-price-text text-rose-600">-${money(x.total_amount)}</span>
+                </div>
+                <div class="prod-stock-line">
+                  <span class="prod-stock-tag out-stock">${icon('eye', 11)} Xem chi tiết</span>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    } catch (err) {
+      target.innerHTML = `<div class="alert danger">${esc(err.message)}</div>`;
+    }
+  }
+}
+
+window.clearReturnOrderSearch = () => {
+  const input = $('#returnOrderSearch');
+  if (!input) return;
+  input.value = '';
+  $('#returnClearBtn')?.classList.add('hidden');
+  input.focus();
+  loadReturnOrders();
+};
+
+window._returnOrderSortVal = 'date_desc';
+
+window.setReturnOrderSort = (sort, btn) => {
+  window._returnOrderSortVal = sort;
+  document.querySelectorAll('#returnSortBar .pos-sort-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  loadReturnOrders();
+};
+
 async function loadReturnOrders() {
-  const target = $('#returnOrders');
+  const target = $('#returnOrdersList');
   if (!target) return;
   const q = $('#returnOrderSearch')?.value || '';
-  const sort = $('#returnOrderSort')?.value || 'date_desc';
+  const sort = window._returnOrderSortVal || 'date_desc';
   const storeId = S.store || 0;
   try {
     const list = await api('sales.search', { params: { q, sort, store_id: storeId }, silent: true });
     if (!list.length) {
-      target.innerHTML = `<div class="p-6 text-center text-slate-400">Không tìm thấy hóa đơn nào phù hợp</div>`;
+      target.innerHTML = `
+        <div class="card p-10 text-center text-slate-400">
+          <div class="mb-2">${icon('orders', 32, 'text-slate-300 inline-block')}</div>
+          <p class="font-medium text-sm">Không tìm thấy hóa đơn bán hàng nào phù hợp</p>
+          <small class="text-xs text-slate-400">Thử tìm theo mã hóa đơn hoặc tên thu ngân</small>
+        </div>
+      `;
       return;
     }
-    target.innerHTML = table(
-      ['Mã hóa đơn', 'Chi nhánh', 'Thu ngân', 'Giá trị', 'Ngày mua', 'Trạng thái', 'Thao tác'],
-      list.map(o => [
-        `<b class="text-teal-800 font-mono cursor-pointer hover:underline" onclick="openReturn(${o.id})">${esc(o.order_code)}</b>`,
-        esc(o.store_name),
-        esc(o.full_name),
-        money(o.total_amount),
-        dt(o.created_at),
-        `<span class="badge ${o.status}">${o.status}</span>`,
-        o.status === 'COMPLETED' ? `
-          <button class="btn primary sm" onclick="openReturn(${o.id})">
-            ${icon('returns', 13)} <span>Chọn đổi trả</span>
-          </button>
-        ` : '<span class="text-xs text-slate-400">Đã hủy</span>'
-      ])
-    );
+
+    target.innerHTML = `
+      <div class="product-list-container">
+        ${list.map(o => {
+          const isCompleted = o.status === 'COMPLETED';
+          return `
+            <div class="product-row-card ${isCompleted ? '' : 'inactive'}" onclick="openReturn(${o.id})" title="Nhấp chọn đổi trả hóa đơn: ${esc(o.order_code)}">
+              <!-- CỘT 1: THUMBNAIL ICON (20% width) -->
+              <div class="prod-col-thumb">
+                <div class="prod-thumb-box" style="background:#f0fdfa;border-color:#ccfbf1;">
+                  <span class="text-teal-700">${icon('orders', 22)}</span>
+                </div>
+              </div>
+
+              <!-- CỘT 2: MÃ HÓA ĐƠN & THU NGÂN (40% width) -->
+              <div class="prod-col-info">
+                <div class="prod-name-line">
+                  <span class="prod-name-text">
+                    <b class="text-teal-800 font-mono">${esc(o.order_code)}</b>
+                  </span>
+                </div>
+                <div class="prod-cat-line">
+                  <span class="prod-cat-text">
+                    ${icon('user', 12)}
+                    <span>${esc(o.full_name || 'Thu ngân')}</span>
+                  </span>
+                  <span class="prod-sku-sub">· ${esc(o.store_name)} · ${dt(o.created_at)}</span>
+                </div>
+              </div>
+
+              <!-- CỘT 3: TỔNG TIỀN & NÚT CHỌN (40% width) -->
+              <div class="prod-col-pricing">
+                <div class="prod-price-line">
+                  <span class="prod-price-text">${money(o.total_amount)}</span>
+                </div>
+                <div class="prod-stock-line">
+                  ${isCompleted ? `<span class="prod-stock-tag in-stock">${icon('returns', 11)} Đổi trả</span>` : `<span class="badge danger">Đã hủy</span>`}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
   } catch (e) {
     target.innerHTML = `<div class="alert danger">${esc(e.message)}</div>`;
   }
@@ -4141,40 +4454,72 @@ function renderInventoryRows(q = '') {
     return;
   }
 
-  $('#inventoryTable').innerHTML = table(
-    ['Sản phẩm', 'Danh mục', 'Số lượng tồn', 'Bán gần nhất', 'Trạng thái'],
-    list.map(x => {
-      const isSlow = x.quantity > 0 && (!x.last_sale || Date.now() - new Date(x.last_sale) > 7 * 864e5);
-      const isOut = +x.quantity <= 0;
-      const isLow = +x.quantity > 0 && +x.quantity <= 5;
-      const statusBadge = isOut
-        ? `<span class="badge danger">Hết hàng</span>`
-        : isLow
-        ? `<span class="badge danger">Sắp hết (${x.quantity})</span>`
-        : isSlow
-        ? `<span class="badge WAITING_PARTS">Chậm bán (>7 ngày)</span>`
-        : `<span class="badge COMPLETED">Ổn định</span>`;
+  $('#inventoryTable').innerHTML = `
+    <div class="product-list-container">
+      ${list.map(x => {
+        const isSlow = +x.quantity > 0 && (!x.last_sale || Date.now() - new Date(x.last_sale) > 7 * 864e5);
+        const isOut = +x.quantity <= 0;
+        const isLow = +x.quantity > 0 && +x.quantity <= 5;
+        const isStable = +x.quantity > 5 && !isSlow;
 
-      return [
-        `<div class="flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 grid place-items-center text-slate-500 font-bold shrink-0">
-            ${getCategoryIcon(x.category_name, 16)}
+        const imgUrl = x.image_path || x.image_url;
+        const imgHtml = imgUrl
+          ? `<img src="${esc(imgUrl)}" alt="${esc(x.name)}" class="prod-thumb-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="prod-thumb-fallback" style="display:none">${getCategoryIcon(x.category_name, 22)}</div>`
+          : `<div class="prod-thumb-fallback">${getCategoryIcon(x.category_name, 22)}</div>`;
+
+        let statusBadgeHtml = '';
+        if (isOut) {
+          statusBadgeHtml = `<span class="prod-stock-tag out-stock">${icon('alert', 11)} Hết hàng (0)</span>`;
+        } else if (isLow) {
+          statusBadgeHtml = `<span class="prod-stock-tag" style="background:#fffbeb;color:#b45309;border:1px solid #fde68a;">${icon('alert', 11)} Sắp hết (${x.quantity})</span>`;
+        } else if (isSlow) {
+          statusBadgeHtml = `<span class="prod-stock-tag" style="background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe;">${icon('clock', 11)} Chậm bán</span>`;
+        } else {
+          statusBadgeHtml = `<span class="prod-stock-tag in-stock">${icon('check', 11)} Ổn định</span>`;
+        }
+
+        const lastSaleStr = x.last_sale ? `Bán: ${window.timeAgo ? window.timeAgo(x.last_sale) : dt(x.last_sale)}` : 'Chưa có lượt bán';
+
+        return `
+          <div class="product-row-card ${isOut ? 'inactive' : ''}" onclick="showProductStockDetail(${x.product_id || x.id || 0}, '${esc(x.name).replace(/'/g, "\\'")}')" title="Nhấp xem chi tiết tồn kho & điều chuyển: ${esc(x.name)}">
+            <!-- CỘT 1: ẢNH THUMBNAIL (20% width) -->
+            <div class="prod-col-thumb">
+              <div class="prod-thumb-box">
+                ${imgHtml}
+              </div>
+            </div>
+
+            <!-- CỘT 2: TÊN SẢN PHẨM & NHÓM HÀNG (40% width) -->
+            <div class="prod-col-info">
+              <div class="prod-name-line">
+                <span class="prod-name-text" title="${esc(x.name)}">${esc(x.name)}</span>
+                ${x.brand ? `<span class="prod-brand-badge">${esc(x.brand)}</span>` : ''}
+              </div>
+              <div class="prod-cat-line">
+                <span class="prod-cat-text">
+                  ${getCategoryIcon(x.category_name, 12)}
+                  <span>${esc(x.category_name || 'Chưa phân nhóm')}</span>
+                </span>
+                <span class="prod-sku-sub">· ${lastSaleStr}</span>
+              </div>
+            </div>
+
+            <!-- CỘT 3: SỐ LƯỢNG TỒN & TRẠNG THÁI (40% width) -->
+            <div class="prod-col-pricing">
+              <div class="prod-price-line">
+                <span class="prod-price-text" style="color:${isOut ? '#dc2626' : (isLow ? '#d97706' : '#047857')}">
+                  Tồn: ${x.quantity}
+                </span>
+              </div>
+              <div class="prod-stock-line">
+                ${statusBadgeHtml}
+              </div>
+            </div>
           </div>
-          <div>
-            <b class="text-slate-900 block">${esc(x.name)}</b>
-            ${x.brand ? `<span class="prod-brand-badge">${esc(x.brand)}</span>` : ''}
-          </div>
-        </div>`,
-        esc(x.category_name || '—'),
-        `<button type="button" class="btn ghost sm text-teal-700 font-bold inline-flex items-center gap-1 hover:bg-teal-50 px-2 py-0.5 rounded cursor-pointer transition-colors" title="Bấm để xem chi tiết tồn kho từng chi nhánh" onclick="showProductStockDetail(${x.product_id}, '${esc(x.name).replace(/'/g, "\\'")}')">
-           <b class="text-sm ${x.quantity <= 0 ? 'text-rose-600' : 'text-slate-900'}">${x.quantity}</b>
-           <small class="text-teal-600 font-normal">🔍 Chi tiết</small>
-         </button>`,
-        dt(x.last_sale),
-        statusBadge
-      ];
-    })
-  );
+        `;
+      }).join('')}
+    </div>
+  `;
 }
 
 window.switchInventoryTab = tab => {
