@@ -5374,24 +5374,48 @@ window.showMobilePushBanner = function(notif) {
   const conf = window.getNotifTypeConfig(notif.type, notif.severity);
   const bannerId = 'push_banner_' + (notif.id || Date.now());
 
-  // Haptic physical vibration on Mobile & PWA
-  if ('vibrate' in navigator) {
+  // Haptic physical vibration on iOS Native & Mobile PWA
+  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Haptics) {
+    try {
+      window.Capacitor.Plugins.Haptics.notification({
+        type: conf.sev === 'danger' ? 'ERROR' : (conf.sev === 'warning' ? 'WARNING' : 'SUCCESS')
+      }).catch(() => {});
+    } catch (e) {}
+  } else if ('vibrate' in navigator) {
     try { navigator.vibrate([120, 60, 120]); } catch (e) {}
   } else {
-    haptic('warning');
+    try { haptic('warning'); } catch (e) {}
   }
 
   // Audio synthesizer chime
   window.playNotificationChime();
 
-  // Trigger OS Desktop / Mobile PWA Push Notification if permission granted
+  const targetUrl = notif.link_type === 'orders' && notif.link_id
+    ? `./?page=orders&id=${notif.link_id}`
+    : (notif.link_type ? `./?page=${notif.link_type}` : './?page=notifications');
+
+  // 1. Trigger iOS Native Local Notifications (Lock screen, System banner, Sound)
+  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications) {
+    try {
+      window.Capacitor.Plugins.LocalNotifications.schedule({
+        notifications: [
+          {
+            id: Number(notif.id || (Date.now() % 1000000)),
+            title: notif.title,
+            body: notif.message,
+            schedule: { at: new Date(Date.now() + 50) },
+            sound: 'default',
+            extra: { url: targetUrl }
+          }
+        ]
+      }).catch(() => {});
+    } catch (e) {}
+  }
+
+  // 2. Trigger OS Desktop / Mobile PWA Push Notification if permission granted
   if ('Notification' in window && Notification.permission === 'granted') {
     try {
-      const targetUrl = notif.link_type === 'orders' && notif.link_id
-        ? `./?page=orders&id=${notif.link_id}`
-        : (notif.link_type ? `./?page=${notif.link_type}` : './?page=notifications');
-
-      const iconUrl = new URL('assets/icon.svg', window.location.href).href;
+      const iconUrl = new URL('assets/icon-192.png', window.location.href).href;
 
       if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
         navigator.serviceWorker.ready.then(reg => {
@@ -5851,6 +5875,26 @@ window.requestNotificationPermission = async function() {
 };
 
 window.initNotificationSystem = function() {
+  // 1. Initialize Capacitor iOS Native Local Notifications & Haptics
+  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications) {
+    try {
+      window.Capacitor.Plugins.LocalNotifications.requestPermissions().catch(() => {});
+      window.Capacitor.Plugins.LocalNotifications.addListener('localNotificationActionPerformed', (notification) => {
+        const extra = notification?.notification?.extra || {};
+        if (extra.url) {
+          try {
+            const u = new URL(extra.url, window.location.href);
+            const page = u.searchParams.get('page') || 'notifications';
+            const id = u.searchParams.get('id');
+            if (typeof window.go === 'function') {
+              window.go(page, id ? { id } : null);
+            }
+          } catch (err) {}
+        }
+      });
+    } catch (e) {}
+  }
+
   window.checkNotifications(true);
   if (notifPollTimer) clearInterval(notifPollTimer);
   notifPollTimer = setInterval(() => window.checkNotifications(false), 15000);
