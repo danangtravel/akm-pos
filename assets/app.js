@@ -1188,6 +1188,18 @@ window.checkout = async () => {
     showReceipt(detail);
     haptic('success');
     toast(`Đã tạo ${r.order_code} thành công!`);
+
+    // 🔔 Trigger instant iOS Native Notification & Banner
+    window.showMobilePushBanner({
+      id: r.id || Date.now(),
+      title: `🛍️ Đơn mới · +${formatMoney(detail.total_amount || 0)}`,
+      message: `[${store.name || 'Chi nhánh'}] Đã xuất đơn ${r.order_code} thành công (${payName})`,
+      type: 'SALE_NEW',
+      severity: 'SUCCESS',
+      link_type: 'orders',
+      link_id: r.id
+    }, true);
+    if (typeof window.checkNotifications === 'function') window.checkNotifications(false);
   } catch (err) {
     haptic('error');
     toast(err.message, 'error');
@@ -2295,6 +2307,18 @@ window.saveRepairStatus = async (e, id) => {
     closeModal();
     toast('Đã cập nhật tiến độ sửa chữa');
     repairs();
+
+    // 🔔 Trigger instant notification for repair update
+    window.showMobilePushBanner({
+      id: id || Date.now(),
+      title: d.status === 'COMPLETED' ? `✅ Sửa xong: ${r.device_name || 'Thiết bị'}` : `🔧 Cập nhật sửa: ${r.device_name || 'Thiết bị'}`,
+      message: `Khách: ${r.customer_name || 'Khách'} · ${d.status === 'COMPLETED' ? 'Đã hoàn tất sửa chữa, sẵn sàng giao máy' : 'Trạng thái: ' + d.status}`,
+      type: d.status === 'COMPLETED' ? 'REPAIR_COMPLETE' : 'REPAIR_UPDATE',
+      severity: d.status === 'COMPLETED' ? 'SUCCESS' : 'INFO',
+      link_type: 'repairs',
+      link_id: id
+    }, true);
+    if (typeof window.checkNotifications === 'function') window.checkNotifications(false);
   } catch (err) {
     toast(err.message, 'error');
   }
@@ -2415,6 +2439,18 @@ window.saveNewRepair = async e => {
     closeModal();
     toast(`Đã tạo phiếu sửa chữa #${r.id}`);
     repairs();
+
+    // 🔔 Trigger instant notification for repair creation
+    window.showMobilePushBanner({
+      id: r.id || Date.now(),
+      title: `🔧 Tiếp nhận sửa: ${d.device_name}`,
+      message: `Khách: ${d.customer_name} (${d.customer_phone}) · Yêu cầu: ${d.repair_request}`,
+      type: 'REPAIR_CREATE',
+      severity: 'INFO',
+      link_type: 'repairs',
+      link_id: r.id
+    }, true);
+    if (typeof window.checkNotifications === 'function') window.checkNotifications(false);
   } catch (err) {
     toast(err.message, 'error');
   }
@@ -5543,12 +5579,15 @@ window.showMobilePushBanner = function(notif, isForceTest = false) {
 };
 
 // 5. Polling & Sync Unread Counts
+window._lastKnownMaxId = window._lastKnownMaxId || 0;
+window._lastKnownUnreadCount = window._lastKnownUnreadCount || 0;
+
 window.checkNotifications = async function(isInitial = false) {
   if (!S.user) return;
   try {
     const res = await api('notifications.unread_count', { silent: true });
-    const unreadCount = res.unread_count || 0;
-    const maxId = res.max_id || 0;
+    const unreadCount = Number(res.unread_count || 0);
+    const maxId = Number(res.max_id || 0);
 
     const badge = document.getElementById('notifBadge');
     const bellBtn = document.getElementById('notifBellBtn');
@@ -5573,24 +5612,29 @@ window.checkNotifications = async function(isInitial = false) {
     }
 
     // Check if new notifications arrived since last check
-    if (!isInitial && (unreadCount > lastKnownUnreadCount || maxId > lastKnownMaxId)) {
+    if (!isInitial && window._lastKnownMaxId > 0 && maxId > window._lastKnownMaxId) {
       if (bellBtn) {
         bellBtn.classList.add('ringing');
         setTimeout(() => bellBtn.classList.remove('ringing'), 900);
       }
 
-      // If we have latest unread items, pop up the most recent one as mobile push banner
       const latestItems = res.latest || [];
-      if (latestItems.length > 0) {
-        const topItem = latestItems[0];
-        window.showMobilePushBanner(topItem);
+      const newItems = latestItems.filter(x => Number(x.id) > window._lastKnownMaxId);
+      if (newItems.length > 0) {
+        newItems.forEach((item, index) => {
+          setTimeout(() => {
+            window.showMobilePushBanner(item, true);
+          }, index * 800);
+        });
+      } else if (latestItems.length > 0) {
+        window.showMobilePushBanner(latestItems[0], true);
       } else {
         window.playNotificationChime();
       }
     }
 
-    lastKnownUnreadCount = unreadCount;
-    lastKnownMaxId = maxId;
+    window._lastKnownUnreadCount = unreadCount;
+    window._lastKnownMaxId = maxId;
   } catch (err) {}
 };
 
@@ -5986,9 +6030,20 @@ window.initNotificationSystem = function() {
     } catch (e) {}
   }
 
+  // 2. Resume listener when app switches to foreground on iOS
+  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
+    try {
+      window.Capacitor.Plugins.App.addListener('appStateChange', (state) => {
+        if (state && state.isActive) {
+          window.checkNotifications(false);
+        }
+      });
+    } catch (e) {}
+  }
+
   window.checkNotifications(true);
   if (notifPollTimer) clearInterval(notifPollTimer);
-  notifPollTimer = setInterval(() => window.checkNotifications(false), 15000);
+  notifPollTimer = setInterval(() => window.checkNotifications(false), 8000);
 
   // Auto scan on system boot
   setTimeout(() => {
