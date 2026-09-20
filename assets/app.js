@@ -14,7 +14,9 @@ const S = {
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const money = n => new Intl.NumberFormat('vi-VN').format(+n || 0) + ' ₫';
+window.money = window.money || (n => new Intl.NumberFormat('vi-VN').format(+n || 0) + ' ₫');
+window.formatMoney = window.money;
+const money = window.money;
 const dt = s => {
   if (!s) return '—';
   try {
@@ -1192,7 +1194,7 @@ window.checkout = async () => {
     // 🔔 Trigger instant iOS Native Notification & Banner
     window.showMobilePushBanner({
       id: r.id || Date.now(),
-      title: `🛍️ Đơn mới · +${formatMoney(detail.total_amount || 0)}`,
+      title: `🛍️ Đơn mới · +${money(detail.total_amount || 0)}`,
       message: `[${store.name || 'Chi nhánh'}] Đã xuất đơn ${r.order_code} thành công (${payName})`,
       type: 'SALE_NEW',
       severity: 'SUCCESS',
@@ -3693,15 +3695,15 @@ window.openReturn = async id => {
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs mb-2">
             <div class="p-2 bg-white rounded-lg border border-slate-200">
               <span class="text-slate-500 block">Tổng tiền hàng trả:</span>
-              <b id="exReturnSum" class="text-slate-800 font-mono text-sm">0₫</b>
+              <b id="exReturnSum" class="text-slate-800 font-mono text-sm">0 ₫</b>
             </div>
             <div class="p-2 bg-white rounded-lg border border-slate-200">
               <span class="text-slate-500 block">Tổng tiền hàng đổi mới:</span>
-              <b id="exNewSum" class="text-sky-700 font-mono text-sm">0₫</b>
+              <b id="exNewSum" class="text-sky-700 font-mono text-sm">0 ₫</b>
             </div>
             <div class="p-2 bg-white rounded-lg border border-slate-200" id="exDiffContainer">
               <span class="text-slate-500 block" id="exDiffLabel">Chênh lệch:</span>
-              <b id="exDiffValue" class="text-emerald-700 font-mono text-sm font-extrabold">0₫</b>
+              <b id="exDiffValue" class="text-emerald-700 font-mono text-sm font-extrabold">0 ₫</b>
             </div>
           </div>
           <div class="text-[11.5px] text-slate-500" id="exDiffNote">
@@ -3999,7 +4001,7 @@ window.updateReturnCalculation = () => {
       if (exDiffNote) exDiffNote.textContent = 'Cửa hàng hoàn tiền chênh lệch cho khách do hàng mới có giá thấp hơn.';
     } else {
       exDiffLabel.textContent = 'Chênh lệch:';
-      exDiffEl.textContent = '0₫ (Đổi ngang)';
+      exDiffEl.textContent = '0 ₫ (Đổi ngang)';
       exDiffEl.className = 'text-sky-700 font-mono text-sm font-extrabold';
       if (exDiffNote) exDiffNote.textContent = 'Hai sản phẩm có giá trị ngang nhau, không phát sinh chênh lệch tiền.';
     }
@@ -6462,7 +6464,7 @@ window.testLocalNotification = async function(e) {
 
   const testNotif = {
     id: Date.now() % 1000000,
-    title: '🛍️ Đơn hàng mới · +1.850.000₫',
+    title: '🛍️ Đơn hàng mới · +1.850.000 ₫',
     message: '[Chi nhánh 1] Thu ngân vừa chốt đơn thành công · Khách hàng Nguyễn Văn A',
     type: 'SALE_NEW',
     severity: 'SUCCESS',
