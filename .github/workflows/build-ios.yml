@@ -1,0 +1,70 @@
+name: Build iOS IPA (AKM POS)
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      server_url:
+        description: 'Default POS Server URL (e.g. https://pos.anhkhoamobile.com)'
+        required: false
+        default: 'https://pos.anhkhoamobile.com'
+
+jobs:
+  build-ios:
+    name: 🍏 Build iOS Native IPA
+    runs-on: macos-14
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Install Node Dependencies
+        run: npm ci || npm install
+
+      - name: 🛠️ Setup CocoaPods & Sync Capacitor
+        run: |
+          npx cap sync ios
+          cd ios/App
+          pod install
+
+      - name: 🏗️ Build iOS App with Xcode
+        run: |
+          cd ios/App
+          xcodebuild clean build \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CONFIGURATION_BUILD_DIR=build/Release-iphoneos
+
+      - name: 📦 Package into .IPA (Payload format)
+        run: |
+          cd ios/App/build/Release-iphoneos
+          mkdir -p Payload
+          cp -r App.app Payload/
+          zip -r ../../../AKM_POS.ipa Payload
+          cd ../../..
+
+      - name: 📤 Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AKM_POS_iOS_IPA
+          path: AKM_POS.ipa
+          retention-days: 14
+
+      - name: 📤 Upload .app Bundle (Zip)
+        uses: actions/upload-artifact@v4
+        with:
+          name: AKM_POS_iOS_App_Bundle
+          path: ios/App/build/Release-iphoneos/App.app
+          retention-days: 14

@@ -1,0 +1,7 @@
+Options -Indexes
+DirectoryIndex index.php
+<FilesMatch "^(README\.md|composer\.(json|lock)|package(-lock)?\.json)$">
+  Require all denied
+</FilesMatch>
+RewriteEngine On
+RewriteRule ^api/?$ api.php [L,QSA]

@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>AKM POS · iOS App</title>
+  <style>
+    :root {
+      --brand: #0f766e;
+      --brand-dark: #115e59;
+      --brand-light: #14b8a6;
+      --bg: #0f172a;
+      --card-bg: rgba(30, 41, 59, 0.85);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --radius: 16px;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      padding-top: calc(24px + env(safe-area-inset-top));
+      padding-bottom: calc(24px + env(safe-area-inset-bottom));
+      overflow-x: hidden;
+      position: relative;
+    }
+    /* Subtle background glow */
+    body::before {
+      content: '';
+      position: absolute;
+      width: 320px;
+      height: 320px;
+      background: radial-gradient(circle, rgba(15, 118, 110, 0.35) 0%, transparent 70%);
+      top: 10%;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    .card {
+      width: 100%;
+      max-width: 380px;
+      background: var(--card-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius);
+      padding: 32px 24px;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+      z-index: 10;
+      animation: fadeIn 0.4s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .logo {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 16px;
+      background: linear-gradient(135deg, var(--brand-light), var(--brand-dark));
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      font-weight: 800;
+      color: #ffffff;
+      box-shadow: 0 10px 25px rgba(20, 184, 166, 0.35);
+    }
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      letter-spacing: -0.02em;
+    }
+    p.desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 24px;
+    }
+    .input-group {
+      text-align: left;
+      margin-bottom: 18px;
+    }
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    input {
+      width: 100%;
+      padding: 13px 16px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      color: #ffffff;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus {
+      border-color: var(--brand-light);
+      box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.2);
+    }
+    .btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+      color: #ffffff;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 6px 20px rgba(15, 118, 110, 0.35);
+      transition: transform 0.1s, opacity 0.2s;
+    }
+    .btn:active {
+      transform: scale(0.98);
+      opacity: 0.9;
+    }
+    .status-msg {
+      margin-top: 14px;
+      font-size: 12px;
+      min-height: 18px;
+    }
+    .status-msg.error { color: #f87171; }
+    .status-msg.success { color: #34d399; }
+    .status-msg.info { color: #38bdf8; }
+    .quick-links {
+      margin-top: 24px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">A</div>
+    <h1>AKM POS</h1>
+    <p class="desc">Hệ thống Quản lý Bán lẻ & Sửa chữa Đa chi nhánh</p>
+
+    <form id="connectForm" onsubmit="handleConnect(event)">
+      <div class="input-group">
+        <label for="serverUrl">Địa chỉ Máy chủ POS</label>
+        <input id="serverUrl" type="url" placeholder="https://pos.anhkhoamobile.com" required>
+      </div>
+
+      <button id="connectBtn" type="submit" class="btn">
+        <span>Kết nối hệ thống</span>
+      </button>
+    </form>
+
+    <div id="statusMsg" class="status-msg"></div>
+
+    <div class="quick-links">
+      Phiên bản iOS Native · Hỗ trợ iOS 14.0+
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'akm_pos_server_url';
+    const serverInput = document.getElementById('serverUrl');
+    const statusEl = document.getElementById('statusMsg');
+    const connectBtn = document.getElementById('connectBtn');
+
+    // Default or remembered URL
+    const savedUrl = localStorage.getItem(STORAGE_KEY) || window.location.origin;
+
+    if (savedUrl && !savedUrl.includes('localhost') && !savedUrl.startsWith('capacitor://') && !savedUrl.startsWith('file://')) {
+      serverInput.value = savedUrl;
+      // Auto-connect if already valid
+      setTimeout(() => checkAndRedirect(savedUrl, true), 300);
+    } else {
+      serverInput.value = 'https://pos.anhkhoamobile.com';
+    }
+
+    async function checkAndRedirect(url, isAuto = false) {
+      url = url.trim().replace(/\/+$/, '');
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+      }
+
+      showStatus('<span class="spinner"></span> Đang kết nối máy chủ...', 'info');
+      connectBtn.disabled = true;
+
+      try {
+        // Ping API endpoint to verify connectivity
+        const testRes = await fetch(url + '/api.php?action=auth.me', {
+          method: 'GET',
+          mode: 'cors',
+          cache: 'no-cache'
+        }).catch(() => null);
+
+        // Save URL
+        localStorage.setItem(STORAGE_KEY, url);
+        showStatus('✅ Kết nối thành công! Đang chuyển hướng...', 'success');
+        
+        setTimeout(() => {
+          window.location.replace(url);
+        }, 500);
+      } catch (err) {
+        if (!isAuto) {
+          // Allow connecting anyway if user requested
+          localStorage.setItem(STORAGE_KEY, url);
+          window.location.replace(url);
+        } else {
+          showStatus('Vui lòng kiểm tra địa chỉ máy chủ và nhấn Kết nối', 'info');
+          connectBtn.disabled = false;
+        }
+      }
+    }
+
+    function handleConnect(e) {
+      e.preventDefault();
+      const val = serverInput.value;
+      if (val) checkAndRedirect(val, false);
+    }
+
+    function showStatus(html, type) {
+      statusEl.className = 'status-msg ' + type;
+      statusEl.innerHTML = html;
+    }
+  </script>
+</body>
+</html>

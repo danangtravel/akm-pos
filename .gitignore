@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# iOS Pods & Build Artifacts
+ios/App/Pods/
+ios/App/build/
+ios/App/DerivedData/
+*.ipa
+
+# App configuration & Sensitive data
+config/config.php
+backups/*.zip
+backups/*.sql
+sessions/*.sess
+uploads/temp/
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log

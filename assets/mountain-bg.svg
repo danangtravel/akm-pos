@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" width="100%" height="100%" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0b132b"/>
+      <stop offset="50%" stop-color="#1c2541"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="mountGrad1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="mountGrad2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="mountGrad3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#475569"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="mistGrad" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#2563eb" stop-opacity="0.35"/>
+      <stop offset="60%" stop-color="#1e40af" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#0f172a" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Sky Background -->
+  <rect width="800" height="400" fill="url(#skyGrad)"/>
+
+  <!-- Subtle Stars / Glow dots -->
+  <circle cx="120" cy="60" r="1" fill="#94a3b8" opacity="0.6"/>
+  <circle cx="280" cy="40" r="1.5" fill="#e2e8f0" opacity="0.8"/>
+  <circle cx="450" cy="80" r="1" fill="#94a3b8" opacity="0.5"/>
+  <circle cx="680" cy="50" r="1.2" fill="#cbd5e1" opacity="0.7"/>
+  <circle cx="730" cy="90" r="1" fill="#94a3b8" opacity="0.4"/>
+  <circle cx="340" cy="110" r="1" fill="#ffffff" opacity="0.5"/>
+
+  <!-- Far Mountain Silhouette -->
+  <path d="M0 260 L90 190 L180 230 L290 140 L410 240 L530 160 L640 220 L740 170 L800 210 L800 400 L0 400 Z" fill="url(#mountGrad3)" opacity="0.7"/>
+
+  <!-- Mid Mountain Silhouette -->
+  <path d="M0 300 L110 220 L230 270 L340 180 L480 290 L590 200 L710 260 L800 230 L800 400 L0 400 Z" fill="url(#mountGrad2)"/>
+
+  <!-- Near Mountain Silhouette with sharp crags -->
+  <path d="M0 340 L80 280 L160 310 L260 230 L380 320 L510 240 L620 300 L730 250 L800 290 L800 400 L0 400 Z" fill="url(#mountGrad1)"/>
+
+  <!-- Pine Trees silhouettes on ridgelines -->
+  <path d="M15 345 L20 330 L25 345 M40 338 L45 322 L50 338 M70 320 L75 305 L80 320 M245 270 L250 255 L255 270 M258 268 L262 250 L266 268 M365 330 L370 315 L375 330 M495 285 L500 268 L505 285 M508 280 L512 262 L516 280 M715 295 L720 280 L725 295" stroke="#0f172a" stroke-width="3" fill="#0f172a"/>
+
+  <!-- Royal Blue Ambient Mist overlay -->
+  <rect width="800" height="400" fill="url(#mistGrad)"/>
+</svg>
