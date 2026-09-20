@@ -5361,12 +5361,17 @@ window.getNotifTypeConfig = function(type, severity) {
 };
 
 // 4. In-App Mobile Push Banner Display with Touch / Swipe-up Gesture & Web Push
-window.showMobilePushBanner = function(notif) {
-  const container = document.getElementById('mobilePushContainer');
-  if (!container) return;
+window.showMobilePushBanner = function(notif, isForceTest = false) {
+  let container = document.getElementById('mobilePushContainer');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'mobilePushContainer';
+    container.className = 'mobile-push-container';
+    document.body.appendChild(container);
+  }
 
   const notifUniqueKey = 'akm_notif_seen_' + (notif.id || (notif.title + '_' + notif.created_at));
-  if (sessionStorage.getItem(notifUniqueKey)) {
+  if (!isForceTest && sessionStorage.getItem(notifUniqueKey)) {
     return; // Prevent duplicate popup in current session
   }
   sessionStorage.setItem(notifUniqueKey, '1');
@@ -5916,7 +5921,7 @@ window.testLocalNotification = async function(e) {
 
   // 3. Audio Chime & In-App Pop-Up Banner
   window.playNotificationChime();
-  window.showMobilePushBanner(testNotif);
+  window.showMobilePushBanner(testNotif, true);
 };
 
 window.initNotificationSystem = function() {

@@ -270,6 +270,9 @@ if (!is_file(__DIR__ . '/config/config.php')) {
     <b class="text-sm font-semibold text-slate-700">Đang xử lý dữ liệu...</b>
   </div>
 
+  <!-- In-App Floating Push Notification Banner Container -->
+  <div id="mobilePushContainer" class="mobile-push-container"></div>
+
   <script src="assets/app.js"></script>
 </body>
 </html>
