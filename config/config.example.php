@@ -4,13 +4,13 @@ return [
     'db' => ['host' => 'localhost', 'port' => 3306, 'name' => 'akm_pos', 'user' => 'akm_pos', 'pass' => '', 'charset' => 'utf8mb4'],
     'security' => ['session_name' => 'AKMPOSSESSID'],
     'mail' => [
-        'enabled' => true,
-        'host' => 'smtp.tino.vn',
+        'enabled' => false,
+        'host' => 'smtp.example.com',
         'port' => 587,
-        'username' => 'admin@pnnmedia.vn',
-        'password' => '4Za68_Du%kCc^u+^',
+        'username' => 'your_smtp_user@example.com',
+        'password' => 'your_smtp_password',
         'encryption' => 'tls',
-        'from_email' => 'admin@pnnmedia.vn',
-        'from_name' => 'AKM POS - Anh Khoa Mobile'
+        'from_email' => 'no-reply@example.com',
+        'from_name' => 'AKM POS'
     ],
 ];
