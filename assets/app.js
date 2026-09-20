@@ -5874,11 +5874,77 @@ window.requestNotificationPermission = async function() {
   }
 };
 
+window.testLocalNotification = async function(e) {
+  if (e) e.stopPropagation();
+  toast('🔔 Đang phát thông báo thử nghiệm...', 'info');
+
+  const testNotif = {
+    id: Date.now() % 1000000,
+    title: '🛍️ Đơn hàng mới · +1.850.000₫',
+    message: '[Chi nhánh 1] Thu ngân vừa chốt đơn thành công · Khách hàng Nguyễn Văn A',
+    type: 'SALE_NEW',
+    severity: 'SUCCESS',
+    link_type: 'orders'
+  };
+
+  // 1. iOS Native Local Notifications (Banner + Sound)
+  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications) {
+    try {
+      await window.Capacitor.Plugins.LocalNotifications.schedule({
+        notifications: [
+          {
+            id: Number(testNotif.id),
+            title: testNotif.title,
+            body: testNotif.message,
+            schedule: { at: new Date(Date.now() + 100) },
+            sound: 'default',
+            extra: { url: './?page=orders' }
+          }
+        ]
+      });
+    } catch (err) {
+      console.warn('Test local notif error:', err);
+    }
+  }
+
+  // 2. iOS Native Haptics Vibration
+  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Haptics) {
+    try {
+      window.Capacitor.Plugins.Haptics.notification({ type: 'SUCCESS' }).catch(() => {});
+    } catch (err) {}
+  }
+
+  // 3. Audio Chime & In-App Pop-Up Banner
+  window.playNotificationChime();
+  window.showMobilePushBanner(testNotif);
+};
+
 window.initNotificationSystem = function() {
   // 1. Initialize Capacitor iOS Native Local Notifications & Haptics
   if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications) {
     try {
-      window.Capacitor.Plugins.LocalNotifications.requestPermissions().catch(() => {});
+      window.Capacitor.Plugins.LocalNotifications.requestPermissions().then(status => {
+        if (status && (status.display === 'granted' || status.display === 'prompt-with-rationale')) {
+          if (!sessionStorage.getItem('akm_ios_notif_welcomed')) {
+            sessionStorage.setItem('akm_ios_notif_welcomed', '1');
+            setTimeout(() => {
+              window.Capacitor.Plugins.LocalNotifications.schedule({
+                notifications: [
+                  {
+                    id: 99999,
+                    title: '🎉 AKM POS · Thông báo iOS đã sẵn sàng!',
+                    body: 'Bạn sẽ nhận thông báo đơn hàng và cảnh báo sửa chữa tức thì.',
+                    schedule: { at: new Date(Date.now() + 500) },
+                    sound: 'default',
+                    extra: { url: './?page=dashboard' }
+                  }
+                ]
+              }).catch(() => {});
+            }, 800);
+          }
+        }
+      }).catch(() => {});
+
       window.Capacitor.Plugins.LocalNotifications.addListener('localNotificationActionPerformed', (notification) => {
         const extra = notification?.notification?.extra || {};
         if (extra.url) {

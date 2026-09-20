@@ -189,6 +189,9 @@ if (!is_file(__DIR__ . '/config/config.php')) {
                   <span id="flyoutUnreadCount" class="notif-tag-unread hidden">0 mới</span>
                 </div>
                 <div class="notif-flyout-actions">
+                  <button type="button" class="notif-link-btn" onclick="testLocalNotification(event)" title="Gửi thử thông báo Native">
+                    🔔 Thử chuông
+                  </button>
                   <button type="button" class="notif-link-btn" onclick="markAllNotificationsRead(event)" title="Đánh dấu tất cả đã đọc">
                     Đọc tất cả
                   </button>
