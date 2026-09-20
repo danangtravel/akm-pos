@@ -78,7 +78,7 @@ jobs:
           body: |
             ## 📱 AKM POS - iOS Native IPA Package
             - **Commit**: `${{ github.sha }}`
-            - **Default Web URL**: `https://pos.anhkhoamobile.com`
+            - **Default Web URL**: `https://pos.anhkhamobile.com`
             
             ### 📥 Hướng dẫn cài đặt file IPA vào iPhone:
             1. Tải file **`AKM_POS.ipa`** bên dưới về máy tính.

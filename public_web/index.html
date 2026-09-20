@@ -179,7 +179,7 @@
     <form id="connectForm" onsubmit="handleConnect(event)">
       <div class="input-group">
         <label for="serverUrl">Địa chỉ Máy chủ POS</label>
-        <input id="serverUrl" type="url" placeholder="https://pos.anhkhoamobile.com" required>
+        <input id="serverUrl" type="url" placeholder="https://pos.anhkhamobile.com" required>
       </div>
 
       <button id="connectBtn" type="submit" class="btn">
@@ -208,7 +208,7 @@
       // Auto-connect if already valid
       setTimeout(() => checkAndRedirect(savedUrl, true), 300);
     } else {
-      serverInput.value = 'https://pos.anhkhoamobile.com';
+      serverInput.value = 'https://pos.anhkhamobile.com';
     }
 
     async function checkAndRedirect(url, isAuto = false) {

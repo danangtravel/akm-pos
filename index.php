@@ -90,7 +90,7 @@ if (!is_file(__DIR__ . '/config/config.php')) {
             <span class="input-icon">
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
             </span>
-            <input id="loginEmail" name="email" type="email" placeholder="ten@anhkhoamobile.com" autocomplete="username" required autofocus>
+            <input id="loginEmail" name="email" type="email" placeholder="ten@anhkhamobile.com" autocomplete="username" required autofocus>
           </div>
         </div>
         
@@ -116,7 +116,7 @@ if (!is_file(__DIR__ . '/config/config.php')) {
       <div class="login-footer">
         <span class="login-footer-domain">
           <span class="status-dot"></span>
-          pos.anhkhoamobile.com
+          pos.anhkhamobile.com
         </span>
         <span class="login-footer-security">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
