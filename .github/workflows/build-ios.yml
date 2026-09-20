@@ -4,11 +4,6 @@ on:
   push:
     branches: [ main, master ]
   workflow_dispatch:
-    inputs:
-      server_url:
-        description: 'Default POS Server URL (e.g. https://pos.anhkhoamobile.com)'
-        required: false
-        default: 'https://pos.anhkhoamobile.com'
 
 permissions:
   contents: write
@@ -30,11 +25,11 @@ jobs:
         run: |
           npm install --legacy-peer-deps
 
-      - name: 🛠️ Setup CocoaPods & Sync Capacitor
+      - name: 🛠️ Sync Capacitor & Install Pods
         run: |
-          npx cap sync ios --no-pod-install
+          npx cap sync ios
           cd ios/App
-          pod install || pod install --repo-update
+          pod install
 
       - name: 🏗️ Build iOS App with Xcode
         run: |
@@ -51,16 +46,14 @@ jobs:
             PROVISIONING_PROFILE_SPECIFIER="" \
             DEVELOPMENT_TEAM="" \
             CODE_SIGN_ENTITLEMENTS="" \
-            CONFIGURATION_BUILD_DIR="${GITHUB_WORKSPACE}/build/Release-iphoneos"
+            BUILD_DIR="${GITHUB_WORKSPACE}/build"
 
-      - name: 📦 Package into .IPA (Payload format)
+      - name: 📦 Package into .IPA
         run: |
-          mkdir -p build/Payload
-          cp -r build/Release-iphoneos/App.app build/Payload/
-          cd build
-          zip -r -q ../AKM_POS.ipa Payload
-          cd ..
-          ls -la AKM_POS.ipa
+          mkdir -p Payload
+          cp -r "${GITHUB_WORKSPACE}/build/Release-iphoneos/App.app" Payload/
+          zip -r -q AKM_POS.ipa Payload
+          ls -lh AKM_POS.ipa
 
       - name: 📤 Upload IPA Artifact
         uses: actions/upload-artifact@v4
@@ -69,28 +62,28 @@ jobs:
           path: AKM_POS.ipa
           retention-days: 14
 
-      - name: 📤 Upload .app Bundle (Zip)
+      - name: 📤 Upload .app Bundle
         uses: actions/upload-artifact@v4
         with:
           name: AKM_POS_iOS_App_Bundle
-          path: build/Release-iphoneos/App.app
+          path: ${{ github.workspace }}/build/Release-iphoneos/App.app
           retention-days: 14
 
       - name: 🚀 Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/heads/main')
         with:
-          tag_name: latest-ios-build
-          name: "AKM POS iOS Native Build (Latest IPA)"
+          tag_name: v1.0.0
+          name: "AKM POS iOS Native App v1.0.0"
           body: |
-            ## 📱 AKM POS - iOS Native Package
-            - **Build Date**: ${{ github.event.head_commit.timestamp }}
-            - **Commit**: ${{ github.sha }}
-            - **Default Host**: `https://pos.anhkhoamobile.com`
+            ## 📱 AKM POS - iOS Native IPA Package
+            - **Commit**: `${{ github.sha }}`
+            - **Default Web URL**: `https://pos.anhkhoamobile.com`
             
             ### 📥 Hướng dẫn cài đặt file IPA vào iPhone:
-            1. Tải file `AKM_POS.ipa` bên dưới về máy tính hoặc điện thoại.
-            2. Cài đặt bằng **Sideloadly / 3uTools / TrollStore / AltStore / Scarlet / Esign**.
+            1. Tải file **`AKM_POS.ipa`** bên dưới về máy tính.
+            2. Sử dụng **Sideloadly** hoặc **3uTools** cắm cáp USB để nạp trực tiếp vào iPhone với Apple ID miễn phí.
+            3. Hoặc mở file trên thiết bị đã cài **TrollStore / Scarlet / Esign / AltStore**.
           files: |
             AKM_POS.ipa
           draft: false
