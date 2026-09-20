@@ -200,68 +200,38 @@
     const statusEl = document.getElementById('statusMsg');
     const connectBtn = document.getElementById('connectBtn');
 
-    // Default or remembered URL
-    const savedUrl = localStorage.getItem(STORAGE_KEY) || window.location.origin;
+    const defaultUrl = 'https://pos.anhkhamobile.com';
+    const savedUrl = localStorage.getItem(STORAGE_KEY) || defaultUrl;
+    serverInput.value = savedUrl;
 
-    if (savedUrl && !savedUrl.includes('localhost') && !savedUrl.startsWith('capacitor://') && !savedUrl.startsWith('file://')) {
-      serverInput.value = savedUrl;
-      // Auto-connect if already valid
-      setTimeout(() => checkAndRedirect(savedUrl, true), 300);
-    } else {
-      serverInput.value = 'https://pos.anhkhamobile.com';
-    }
-
-    async function checkAndRedirect(url, isAuto = false) {
+    function redirectTo(url) {
       url = url.trim().replace(/\/+$/, '');
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
         url = 'https://' + url;
       }
-
-      showStatus('<span class="spinner"></span> Đang kết nối máy chủ...', 'info');
+      localStorage.setItem(STORAGE_KEY, url);
+      showStatus('🚀 Đang kết nối máy chủ...', 'info');
       connectBtn.disabled = true;
-
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 6000);
-
-        const testRes = await fetch(url + '/api.php?action=auth.me', {
-          method: 'GET',
-          mode: 'cors',
-          cache: 'no-cache',
-          signal: controller.signal
-        }).catch(e => {
-          throw new Error('Không thể kết nối tới địa chỉ máy chủ');
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!testRes || (!testRes.ok && testRes.status !== 401 && testRes.status !== 403)) {
-          throw new Error('Máy chủ phản hồi mã lỗi: ' + (testRes ? testRes.status : 'Offline'));
-        }
-
-        // Save URL
-        localStorage.setItem(STORAGE_KEY, url);
-        showStatus('✅ Kết nối thành công! Đang chuyển hướng...', 'success');
-        
-        setTimeout(() => {
-          window.location.replace(url);
-        }, 500);
-      } catch (err) {
-        showStatus('❌ ' + (err.message || 'Không thể kết nối tới máy chủ. Vui lòng kiểm tra tên miền/hosting!'), 'error');
-        connectBtn.disabled = false;
-      }
+      setTimeout(() => {
+        window.location.replace(url);
+      }, 150);
     }
 
     function handleConnect(e) {
-      e.preventDefault();
-      const val = serverInput.value;
-      if (val) checkAndRedirect(val, false);
+      if (e) e.preventDefault();
+      const val = serverInput.value || defaultUrl;
+      redirectTo(val);
     }
 
     function showStatus(html, type) {
       statusEl.className = 'status-msg ' + type;
       statusEl.innerHTML = html;
     }
+
+    // Auto navigate on start
+    setTimeout(() => {
+      redirectTo(savedUrl);
+    }, 200);
   </script>
 </body>
 </html>

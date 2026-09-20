@@ -5,6 +5,18 @@ ini_set('default_charset', 'UTF-8');
 if (function_exists('mb_internal_encoding')) mb_internal_encoding('UTF-8');
 if (function_exists('mb_http_output')) mb_http_output('UTF-8');
 
+// CORS support for mobile native app & PWA
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '*';
+header("Access-Control-Allow-Origin: $origin");
+header("Access-Control-Allow-Credentials: true");
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-CSRF-Token");
+
+if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
+
 $root = dirname(__DIR__, 2);
 $configFile = $root . '/config/config.php';
 if (!is_file($configFile)) {

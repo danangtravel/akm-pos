@@ -3,9 +3,12 @@
   "appName": "AKM POS",
   "webDir": "public_web",
   "server": {
+    "url": "https://pos.anhkhamobile.com",
     "iosScheme": "https",
     "cleartext": true,
     "allowNavigation": [
+      "pos.anhkhamobile.com",
+      "*.anhkhamobile.com",
       "*"
     ]
   },
