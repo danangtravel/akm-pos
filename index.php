@@ -17,8 +17,10 @@ if (!is_file(__DIR__ . '/config/config.php')) {
   <meta name="description" content="AKM POS - Hệ thống quản lý bán hàng, tồn kho và sửa chữa đa chi nhánh">
   
   <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/favicon.png" type="image/png">
   <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="assets/icon.svg">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
   <title>AKM POS · Quản lý bán hàng & Sửa chữa</title>
   
   <!-- Tailwind CSS Play CDN with custom theme -->
