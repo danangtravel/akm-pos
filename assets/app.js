@@ -5416,17 +5416,7 @@ window.showMobilePushBanner = function(notif, isForceTest = false) {
   const bannerId = 'push_banner_' + (notif.id || Date.now());
 
   // Haptic physical vibration on iOS Native & Mobile PWA
-  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Haptics) {
-    try {
-      window.Capacitor.Plugins.Haptics.notification({
-        type: conf.sev === 'danger' ? 'ERROR' : (conf.sev === 'warning' ? 'WARNING' : 'SUCCESS')
-      }).catch(() => {});
-    } catch (e) {}
-  } else if ('vibrate' in navigator) {
-    try { navigator.vibrate([120, 60, 120]); } catch (e) {}
-  } else {
-    try { haptic('warning'); } catch (e) {}
-  }
+  window.triggerCapacitorHaptics(conf.sev === 'danger' ? 'ERROR' : (conf.sev === 'warning' ? 'WARNING' : 'SUCCESS'));
 
   // Audio synthesizer chime
   window.playNotificationChime();
@@ -5436,22 +5426,7 @@ window.showMobilePushBanner = function(notif, isForceTest = false) {
     : (notif.link_type ? `./?page=${notif.link_type}` : './?page=notifications');
 
   // 1. Trigger iOS Native Local Notifications (Lock screen, System banner, Sound)
-  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications) {
-    try {
-      window.Capacitor.Plugins.LocalNotifications.schedule({
-        notifications: [
-          {
-            id: Number(notif.id || (Date.now() % 1000000)),
-            title: notif.title,
-            body: notif.message,
-            schedule: { at: new Date(Date.now() + 50) },
-            sound: 'default',
-            extra: { url: targetUrl }
-          }
-        ]
-      }).catch(() => {});
-    } catch (e) {}
-  }
+  window.triggerCapacitorLocalNotification(notif, targetUrl);
 
   // 2. Trigger OS Desktop / Mobile PWA Push Notification if permission granted
   if ('Notification' in window && Notification.permission === 'granted') {
@@ -5923,6 +5898,73 @@ window.requestNotificationPermission = async function() {
   }
 };
 
+// Native Capacitor Bridge & Dynamic Plugin Resolver
+window.getCapPlugin = function(name) {
+  if (typeof window.Capacitor === 'undefined') return null;
+  if (window.Capacitor.Plugins && window.Capacitor.Plugins[name]) {
+    return window.Capacitor.Plugins[name];
+  }
+  if (typeof window.Capacitor.registerPlugin === 'function') {
+    try {
+      const plugin = window.Capacitor.registerPlugin(name);
+      if (plugin) {
+        if (!window.Capacitor.Plugins) window.Capacitor.Plugins = {};
+        window.Capacitor.Plugins[name] = plugin;
+        return plugin;
+      }
+    } catch (e) {
+      console.warn('[Capacitor] registerPlugin failed for ' + name, e);
+    }
+  }
+  return null;
+};
+
+window.triggerCapacitorHaptics = function(type = 'SUCCESS') {
+  const haptics = window.getCapPlugin('Haptics');
+  if (haptics && typeof haptics.notification === 'function') {
+    try {
+      const t = String(type).toUpperCase();
+      haptics.notification({ type: t === 'DANGER' || t === 'ERROR' ? 'ERROR' : (t === 'WARNING' ? 'WARNING' : 'SUCCESS') }).catch(() => {});
+    } catch (e) {}
+  } else if ('vibrate' in navigator) {
+    try { navigator.vibrate([120, 60, 120]); } catch (e) {}
+  }
+};
+
+window.triggerCapacitorLocalNotification = async function(notif, targetUrl) {
+  const localNotif = window.getCapPlugin('LocalNotifications');
+  if (!localNotif) return false;
+
+  try {
+    const rawId = Number(notif.id) || Date.now();
+    const safeId = Math.floor(Math.abs(rawId)) % 2147483647 || (Math.floor(Math.random() * 900000) + 100000);
+    
+    // Ensure permission is granted
+    if (typeof localNotif.checkPermissions === 'function') {
+      const status = await localNotif.checkPermissions().catch(() => null);
+      if (status && status.display !== 'granted' && typeof localNotif.requestPermissions === 'function') {
+        await localNotif.requestPermissions().catch(() => null);
+      }
+    }
+
+    await localNotif.schedule({
+      notifications: [
+        {
+          id: safeId,
+          title: String(notif.title || 'AKM POS'),
+          body: String(notif.message || 'Bạn có thông báo mới'),
+          sound: 'default',
+          extra: { url: targetUrl || './?page=notifications' }
+        }
+      ]
+    });
+    return true;
+  } catch (err) {
+    console.warn('[Capacitor] LocalNotification schedule error:', err);
+    return false;
+  }
+};
+
 window.testLocalNotification = async function(e) {
   if (e) e.stopPropagation();
   toast('🔔 Đang phát thông báo thử nghiệm...', 'info');
@@ -5951,32 +5993,11 @@ window.testLocalNotification = async function(e) {
     }).catch(() => {});
   } catch (err) {}
 
-  // 2. iOS Native Local Notifications (Lock screen, System banner, Sound)
-  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications) {
-    try {
-      await window.Capacitor.Plugins.LocalNotifications.schedule({
-        notifications: [
-          {
-            id: Math.floor(Math.random() * 900000) + 100000,
-            title: testNotif.title,
-            body: testNotif.message,
-            schedule: { at: new Date(Date.now() + 100) },
-            sound: 'default',
-            extra: { url: './?page=orders' }
-          }
-        ]
-      });
-    } catch (err) {
-      console.warn('Test local notif error:', err);
-    }
-  }
+  // 2. Trigger iOS Native Local Notification
+  await window.triggerCapacitorLocalNotification(testNotif, './?page=orders');
 
   // 3. iOS Native Haptics Vibration
-  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Haptics) {
-    try {
-      window.Capacitor.Plugins.Haptics.notification({ type: 'SUCCESS' }).catch(() => {});
-    } catch (err) {}
-  }
+  window.triggerCapacitorHaptics('SUCCESS');
 
   // 4. Audio Chime & In-App Pop-Up Banner
   window.playNotificationChime();
@@ -5990,50 +6011,55 @@ window.testLocalNotification = async function(e) {
 
 window.initNotificationSystem = function() {
   // 1. Initialize Capacitor iOS Native Local Notifications & Haptics
-  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications) {
+  const localNotif = window.getCapPlugin('LocalNotifications');
+  if (localNotif) {
     try {
-      window.Capacitor.Plugins.LocalNotifications.requestPermissions().then(status => {
-        if (status && (status.display === 'granted' || status.display === 'prompt-with-rationale')) {
-          if (!sessionStorage.getItem('akm_ios_notif_welcomed')) {
-            sessionStorage.setItem('akm_ios_notif_welcomed', '1');
-            setTimeout(() => {
-              window.Capacitor.Plugins.LocalNotifications.schedule({
-                notifications: [
-                  {
-                    id: 99999,
-                    title: '🎉 AKM POS · Thông báo iOS đã sẵn sàng!',
-                    body: 'Bạn sẽ nhận thông báo đơn hàng và cảnh báo sửa chữa tức thì.',
-                    schedule: { at: new Date(Date.now() + 500) },
-                    sound: 'default',
-                    extra: { url: './?page=dashboard' }
-                  }
-                ]
-              }).catch(() => {});
-            }, 800);
-          }
-        }
-      }).catch(() => {});
-
-      window.Capacitor.Plugins.LocalNotifications.addListener('localNotificationActionPerformed', (notification) => {
-        const extra = notification?.notification?.extra || {};
-        if (extra.url) {
-          try {
-            const u = new URL(extra.url, window.location.href);
-            const page = u.searchParams.get('page') || 'notifications';
-            const id = u.searchParams.get('id');
-            if (typeof window.go === 'function') {
-              window.go(page, id ? { id } : null);
+      if (typeof localNotif.requestPermissions === 'function') {
+        localNotif.requestPermissions().then(status => {
+          if (status && (status.display === 'granted' || status.display === 'prompt-with-rationale')) {
+            if (!sessionStorage.getItem('akm_ios_notif_welcomed')) {
+              sessionStorage.setItem('akm_ios_notif_welcomed', '1');
+              setTimeout(() => {
+                localNotif.schedule({
+                  notifications: [
+                    {
+                      id: 99999,
+                      title: '🎉 AKM POS · Thông báo iOS đã sẵn sàng!',
+                      body: 'Bạn sẽ nhận thông báo đơn hàng và cảnh báo sửa chữa tức thì.',
+                      sound: 'default',
+                      extra: { url: './?page=dashboard' }
+                    }
+                  ]
+                }).catch(() => {});
+              }, 800);
             }
-          } catch (err) {}
-        }
-      });
+          }
+        }).catch(() => {});
+      }
+
+      if (typeof localNotif.addListener === 'function') {
+        localNotif.addListener('localNotificationActionPerformed', (notification) => {
+          const extra = notification?.notification?.extra || {};
+          if (extra.url) {
+            try {
+              const u = new URL(extra.url, window.location.href);
+              const page = u.searchParams.get('page') || 'notifications';
+              const id = u.searchParams.get('id');
+              if (typeof window.go === 'function') {
+                window.go(page, id ? { id } : null);
+              }
+            } catch (err) {}
+          }
+        });
+      }
     } catch (e) {}
   }
 
   // 2. Resume listener when app switches to foreground on iOS
-  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
+  const capApp = window.getCapPlugin('App');
+  if (capApp && typeof capApp.addListener === 'function') {
     try {
-      window.Capacitor.Plugins.App.addListener('appStateChange', (state) => {
+      capApp.addListener('appStateChange', (state) => {
         if (state && state.isActive) {
           window.checkNotifications(false);
         }

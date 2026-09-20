@@ -10,6 +10,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Configure UNUserNotificationCenter to show banners even when app is active in foreground
         UNUserNotificationCenter.current().delegate = self
+        
+        // Explicitly request notification authorization on native iOS launch
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            if granted {
+                print("[AKM POS] iOS Notification permission granted")
+            }
+        }
         return true
     }
 
