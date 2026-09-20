@@ -16,7 +16,7 @@ const $$ = s => document.querySelectorAll(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 window.money = window.money || (n => new Intl.NumberFormat('vi-VN').format(+n || 0) + ' ₫');
 window.formatMoney = window.money;
-const money = window.money;
+var money = window.money;
 const dt = s => {
   if (!s) return '—';
   try {

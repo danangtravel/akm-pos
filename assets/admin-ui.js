@@ -1,7 +1,7 @@
 // AKM POS - Admin Management Modules (Products, Categories, Users, Stores)
 window.money = window.money || (n => new Intl.NumberFormat('vi-VN').format(+n || 0) + ' ₫');
 window.formatMoney = window.money;
-const money = window.money;
+var money = window.money;
 
 // Product Columns Definition & Visibility Configuration
 window.PRODUCT_COLUMNS = [
