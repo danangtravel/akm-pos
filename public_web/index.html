@@ -221,12 +221,23 @@
       connectBtn.disabled = true;
 
       try {
-        // Ping API endpoint to verify connectivity
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+
         const testRes = await fetch(url + '/api.php?action=auth.me', {
           method: 'GET',
           mode: 'cors',
-          cache: 'no-cache'
-        }).catch(() => null);
+          cache: 'no-cache',
+          signal: controller.signal
+        }).catch(e => {
+          throw new Error('Không thể kết nối tới địa chỉ máy chủ');
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!testRes || (!testRes.ok && testRes.status !== 401 && testRes.status !== 403)) {
+          throw new Error('Máy chủ phản hồi mã lỗi: ' + (testRes ? testRes.status : 'Offline'));
+        }
 
         // Save URL
         localStorage.setItem(STORAGE_KEY, url);
@@ -236,14 +247,8 @@
           window.location.replace(url);
         }, 500);
       } catch (err) {
-        if (!isAuto) {
-          // Allow connecting anyway if user requested
-          localStorage.setItem(STORAGE_KEY, url);
-          window.location.replace(url);
-        } else {
-          showStatus('Vui lòng kiểm tra địa chỉ máy chủ và nhấn Kết nối', 'info');
-          connectBtn.disabled = false;
-        }
+        showStatus('❌ ' + (err.message || 'Không thể kết nối tới máy chủ. Vui lòng kiểm tra tên miền/hosting!'), 'error');
+        connectBtn.disabled = false;
       }
     }
 
