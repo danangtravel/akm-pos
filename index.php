@@ -24,6 +24,13 @@ if (!is_file(__DIR__ . '/config/config.php')) {
   <title>AKM POS · Quản lý bán hàng & Sửa chữa</title>
   
   <!-- Tailwind CSS Play CDN with custom theme -->
+  <script>
+    const _w = console.warn;
+    console.warn = function(...a) {
+      if (typeof a[0] === 'string' && a[0].includes('cdn.tailwindcss.com')) return;
+      _w.apply(console, a);
+    };
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {

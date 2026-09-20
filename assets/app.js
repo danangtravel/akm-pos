@@ -6149,7 +6149,7 @@ if ('serviceWorker' in navigator) {
 }
 
 // Initial Auto-Auth
-api('auth.me').then(r => {
+api('auth.me', { silent: true }).then(r => {
   S.user = r.user;
   S.csrf = r.csrf;
   start();
