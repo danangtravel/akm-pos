@@ -5892,13 +5892,28 @@ window.testLocalNotification = async function(e) {
     link_type: 'orders'
   };
 
-  // 1. iOS Native Local Notifications (Banner + Sound)
+  // 1. Create a real database notification entry on backend
+  try {
+    api('notifications.send', {
+      method: 'POST',
+      body: {
+        title: testNotif.title,
+        message: testNotif.message,
+        severity: 'SUCCESS',
+        type: 'SALE_NEW',
+        link_type: 'orders'
+      },
+      silent: true
+    }).catch(() => {});
+  } catch (err) {}
+
+  // 2. iOS Native Local Notifications (Lock screen, System banner, Sound)
   if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications) {
     try {
       await window.Capacitor.Plugins.LocalNotifications.schedule({
         notifications: [
           {
-            id: Number(testNotif.id),
+            id: Math.floor(Math.random() * 900000) + 100000,
             title: testNotif.title,
             body: testNotif.message,
             schedule: { at: new Date(Date.now() + 100) },
@@ -5912,16 +5927,21 @@ window.testLocalNotification = async function(e) {
     }
   }
 
-  // 2. iOS Native Haptics Vibration
+  // 3. iOS Native Haptics Vibration
   if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Haptics) {
     try {
       window.Capacitor.Plugins.Haptics.notification({ type: 'SUCCESS' }).catch(() => {});
     } catch (err) {}
   }
 
-  // 3. Audio Chime & In-App Pop-Up Banner
+  // 4. Audio Chime & In-App Pop-Up Banner
   window.playNotificationChime();
   window.showMobilePushBanner(testNotif, true);
+
+  // 5. Update unread count badge
+  setTimeout(() => {
+    window.checkNotifications(false);
+  }, 400);
 };
 
 window.initNotificationSystem = function() {
